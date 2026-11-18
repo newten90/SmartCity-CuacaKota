@@ -1,10 +1,14 @@
-from datetime import date
+from contextlib import closing
+from datetime import date, datetime, timedelta
+import sqlite3
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from analisis import FIELDS, TEMP, RH, RAIN, PM, LABELS, NAMES, aggregate, load, monthly
+from prediksi import train, forecast
+from sensor import WIB, connect
 
-st.set_page_config(page_title="Cuaca Kota • 2025", layout="wide")
+st.set_page_config(page_title="Cuaca Kota", layout="wide")
 @st.cache_data
 def dataset():
     return load()
@@ -21,10 +25,10 @@ def correlation(frame, x, y):
     return f"r = {r:.3f} · {len(pairs)} pasangan" if r is not None else f"Korelasi belum tersedia · {len(pairs)} pasangan"
 
 data = dataset()
-st.caption("TELEMATIKA  /  SMART CITY     •     ARSIP 2025")
+st.caption("TELEMATIKA  /  SMART CITY")
 st.title("Cuaca dan udara perkotaan")
-st.write("Bandung, Jakarta, dan Surabaya · Data per jam dalam WIB")
-analysis, replay = st.tabs(["Analisis", "Simulasi sensor"])
+st.write("Bandung, Jakarta, dan Surabaya · Waktu Indonesia Barat")
+analysis, replay, live = st.tabs(["Analisis 2025", "Simulasi sensor", "Sensor langsung"])
 with analysis:
     c1,c2 = st.columns([1,2])
     city = c1.selectbox("Kota", sorted(data.kota.unique()))
@@ -81,4 +85,48 @@ def show_replay():
     if n==len(records): st.success("Seluruh catatan sudah ditampilkan.")
 with replay:
     show_replay()
+
+
+@st.cache_resource
+def models():
+    return train(dataset())
+
+
+@st.fragment(run_every="5s")
+def show_live():
+    st.subheader("Pengukuran sensor")
+    st.caption("Dashboard memeriksa kiriman baru setiap 5 detik.")
+    try:
+        with closing(connect()) as db:
+            devices = [tuple(row) for row in db.execute("SELECT DISTINCT kota, sensor FROM readings ORDER BY kota, sensor")]
+            if not devices:
+                st.info("Menunggu kiriman pertama. Ikuti bagian Kirim data sensor di README untuk mencoba.")
+                return
+            city, device = st.selectbox("Perangkat", devices, format_func=lambda pair: " · ".join(pair))
+            history = pd.read_sql_query(
+                "SELECT waktu, suhu, kelembapan FROM readings WHERE kota=? AND sensor=? ORDER BY waktu DESC LIMIT 60",
+                db, params=(city, device))
+    except sqlite3.Error:
+        st.error("Riwayat sensor belum bisa dibaca. Periksa lokasi dan izin tulis SENSOR_DB.")
+        return
+    row = history.iloc[0]
+    stamp = datetime.fromisoformat(row.waktu)
+    st.write(f"Pengukuran terakhir · {stamp:%d/%m/%Y %H:%M:%S} WIB")
+    if datetime.now(WIB) - stamp > timedelta(minutes=5):
+        st.warning("Sudah lebih dari 5 menit sejak pengukuran terakhir.")
+    weights, mae, baseline = models()[city]
+    target = stamp + timedelta(hours=1)
+    a, b, c = st.columns(3)
+    a.metric("Suhu terukur", f"{row.suhu:.1f} °C")
+    b.metric("Kelembapan terukur", f"{row.kelembapan:.1f} %")
+    c.metric(f"Prediksi suhu · {target:%d/%m %H:%M} WIB", f"{forecast(weights, row.suhu, row.kelembapan, stamp):.1f} °C")
+    st.caption(f"Uji arsip {city}, Oktober–Desember 2025 · Rata-rata galat absolut model {mae:.2f} °C. "
+               f"Jika suhu dianggap tetap, galatnya {baseline:.2f} °C.")
+    st.dataframe(history.assign(waktu=history.waktu.map(lambda value: datetime.fromisoformat(value).strftime("%d/%m/%Y %H:%M:%S")))
+                 .rename(columns={"waktu":"Waktu (WIB)", "suhu":"Suhu (°C)", "kelembapan":"Kelembapan (%)"}),
+                 hide_index=True, use_container_width=True)
+
+
+with live:
+    show_live()
 st.caption("Data historis diolah dari Open-Meteo · cuaca ERA5 (ECMWF), kualitas udara Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo · CC BY 4.0. Satu titik model per kota.")
