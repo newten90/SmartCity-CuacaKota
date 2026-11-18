@@ -2,17 +2,15 @@
 
 Cuaca Kota dibuka dengan cuaca Bandung saat ini. Pilih Jakarta atau Surabaya untuk melihat kota lain. Semua jam memakai WIB.
 
-Laporan akhir memuat data tiga kota, tangkapan layar, hasil pengujian, dan alur demo tujuh menit. [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf)
+Laporan akhir memuat data tiga kota, tangkapan layar, hasil pengujian, dan alur demo tujuh menit. [Unduh laporan Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan-Akhir-Telematika.docx) · [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf)
 
 ![Halaman cuaca Bandung](laporan/gambar/01-cuaca.png)
 
-Tab **Cuaca & prediksi** menampilkan kondisi kota saat ini, suhu terasa, kelembapan, angin, waktu terbit dan terbenam matahari, serta prakiraan per jam. Geser deretan jam untuk melihat 24 jam berikutnya. Tabel tujuh hari memperlihatkan kondisi, rentang suhu, kemungkinan hujan, jumlah presipitasi, dan angin maksimum per hari. Angka berasal dari prakiraan operasional Open-Meteo dan diperbarui paling sering setiap 15 menit saat dashboard dibuka. [Weather Forecast API](https://open-meteo.com/en/docs)
+Tab **Cuaca & prakiraan** menampilkan kondisi kota saat ini, suhu terasa, kelembapan, angin, waktu terbit dan terbenam matahari, serta prakiraan per jam. Geser deretan jam untuk melihat 24 jam berikutnya. Tabel tujuh hari memperlihatkan kondisi, rentang suhu, kemungkinan hujan, jumlah presipitasi, dan angin maksimum per hari. Angka berasal dari prakiraan operasional Open-Meteo dan diperbarui paling sering setiap 15 menit saat dashboard dibuka. [Weather Forecast API](https://open-meteo.com/en/docs)
 
-Di bawahnya ada estimasi suhu rata-rata dari model lokal, serta riwayat per jam yang bisa diunduh sejak **1 Oktober 2026**. Riwayat ini menyimpan data grid meteorologi untuk titik koordinat tiap kota. Data perangkat IoT tetap berada di tabel tersendiri.
+Di bawah prakiraan ada riwayat per jam yang bisa diunduh sejak **1 Oktober 2026**. Riwayat ini menyimpan data grid meteorologi untuk titik koordinat tiap kota. Data perangkat IoT tetap berada di tabel tersendiri.
 
-Tab **Analisis 2025** menampilkan suhu, kelembapan, total hujan, dan estimasi PM2.5 menurut kota dan rentang tanggal. Arsip 2025 juga menjadi bahan latih dan evaluasi model lokal.
-
-Tab **Simulasi sensor** memutar ulang hari lengkap terbaru untuk Bandung di riwayat daring, satu jam per klik. Suhu dan kelembapan muncul dalam dua kartu. Grafik suhu mulai terlihat setelah pengukuran kedua. Simulasi membaca riwayat yang sudah tersimpan. Untuk melihat kiriman perangkat asli, buka tabel `cuaca_sensor` di Supabase.
+Tab **Analisis 2025** menampilkan suhu, kelembapan, total hujan, dan estimasi PM2.5 menurut kota dan rentang tanggal.
 
 ## Menjalankan dashboard
 
@@ -24,7 +22,7 @@ py -m venv .venv
 .\.venv\Scripts\python -m streamlit run app.py
 ```
 
-Buka alamat lokal yang muncul di terminal. Arsip analisis dan salinan riwayat simulasi sudah tersedia di folder `data`. Cuaca terkini membutuhkan internet.
+Buka alamat lokal yang muncul di terminal. Arsip analisis dan salinan riwayat per jam sudah tersedia di folder `data`. Cuaca terkini membutuhkan internet.
 
 ## Hubungkan ke Supabase
 
@@ -80,11 +78,7 @@ Untuk ESP32 atau pengirim lain di Wi-Fi yang sama, jalankan `sensor.py --host 0.
 
 Jalankan `.\.venv\Scripts\python cuaca_online.py` dari folder proyek dengan koneksi Supabase aktif. Perintah mengambil riwayat sejak 1 Oktober 2026 sampai jam berjalan dalam WIB, lalu memperbarui tabel `public.cuaca_online`. Pasangan kota dan waktu hanya mendapat satu baris meski impor diulang. Salinan CSV di `data/riwayat_online.csv` dipakai dashboard saat database belum tersedia. Setiap baris menyimpan sumber cuaca; arsip memakai ERA5, sedangkan tujuh tanggal terkini memakai model operasional. PM2.5 berasal dari CAMS melalui Open-Meteo. Impor ini dijalankan terpisah dari pembaruan prakiraan di dashboard.
 
-## Cara model membuat prediksi
-
-Aplikasi menghitung suhu rata-rata dari 24 pengukuran per hari dalam arsip 2025 dan riwayat daring sejak Oktober 2026, lalu melatih model musiman untuk setiap kota. Saat sensor mencatat suhu pada sedikitnya 18 jam berbeda kemarin (WIB), model menghitung selisih suhu kemarin dari pola musimannya. Pengaruh selisih itu berkurang untuk tanggal yang lebih jauh sesuai hubungan suhu antarhari dalam arsip. Setiap perangkat mendapat bobot yang sama dalam satu jam, lalu tiap jam mendapat bobot yang sama dalam rata-rata harian. Tab memeriksa ulang data setiap menit selama dashboard terbuka.
-
-Untuk mengukur galat, model evaluasi hanya belajar dari Januari–September 2025. Sepanjang Oktober–Desember, pengujian membuat prediksi tujuh hari berulang kali dengan informasi yang tersedia pada tiap tanggal, lalu mencocokkannya dengan suhu sebenarnya dalam arsip. Model dashboard dilatih ulang dengan arsip 2025 dan hari lengkap yang sudah lewat dalam riwayat daring. Jika sensor belum cukup, model memakai rerata daring kemarin bila 24 jam tersedia, atau pola musiman jika belum lengkap. Prakiraan operasional ditampilkan tersendiri di atasnya.
+## Sumber arsip
 
 Arsip berisi data per jam sepanjang 2025. Cuaca berasal dari ECMWF ERA5 dan estimasi PM2.5 dari Copernicus Atmosphere Monitoring Service melalui Open-Meteo. Setiap kota diwakili satu titik model. [Arsip cuaca](https://open-meteo.com/en/docs/historical-weather-api) · [Data kualitas udara](https://open-meteo.com/en/docs/air-quality-api) · [Lisensi CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 

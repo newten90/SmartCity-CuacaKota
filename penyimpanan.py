@@ -1,6 +1,6 @@
 """Penyimpanan bersama untuk penerima HTTP dan dashboard."""
 from contextlib import contextmanager, closing
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import sqlite3
@@ -64,20 +64,6 @@ class Store:
             ORDER BY waktu DESC LIMIT 60""", (city, sensor)).fetchall()
         return [(stamp.astimezone(WIB).isoformat() if isinstance(stamp, datetime) else stamp, temp, rh)
                 for stamp, temp, rh in rows]
-
-    def daily_temperature(self, city, day):
-        start = datetime.combine(day, time(), WIB)
-        bounds = [stamp.isoformat(timespec="microseconds") for stamp in (start, start + timedelta(days=1))]
-        hour = "extract(hour from waktu at time zone 'Asia/Jakarta')" if self.cloud else "substr(waktu,12,2)"
-        # Bobot sama per perangkat dalam satu jam, lalu bobot sama per jam.
-        return self.execute("""
-            SELECT avg(temp), count(*) FROM (
-                SELECT jam, avg(device_temp) AS temp FROM (
-                    SELECT """ + hour + """ AS jam, sensor, avg(suhu) AS device_temp
-                    FROM {table} WHERE kota=? AND waktu>=? AND waktu<?
-                    GROUP BY 1, sensor
-                ) per_sensor GROUP BY jam
-            ) per_jam""", (city, *bounds)).fetchone()
 
 
 def initialize_cloud():

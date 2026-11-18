@@ -20,14 +20,8 @@ for city in sorted(d.kota.unique()):
             assert metric.value==f"{ref:.2f}", (city,f,metric.value,ref)
             results.append([city,start,end,f,metric.value,f"{ref:.2f}","sesuai"])
 pd.DataFrame(results,columns=["kota","awal","akhir","variabel","dashboard","pandas","hasil"]).to_csv(ROOT/"bukti/uji_indikator.csv",index=False)
-for i in range(24):
-    app.button[0].click().run()
-    assert app.session_state["pos"]==i+1
-assert app.button[0].disabled
-app.button[1].click().run()
-assert app.session_state["pos"]==0 and not app.button[0].disabled
 sample=d.iloc[:24].copy()
 sample.loc[sample.index[0],RAIN]=float("nan")
 assert pd.isna(aggregate(sample,"tanggal").iloc[0][RAIN])
 assert not monthly(sample).bulan_utuh.any()
-print("Lulus: 48 nilai indikator, 24 langkah simulasi, batas akhir, reset, data hujan kosong.")
+print("Lulus: 48 nilai indikator, data hujan kosong.")
