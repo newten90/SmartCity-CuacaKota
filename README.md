@@ -2,9 +2,9 @@
 
 Cuaca Kota menampilkan cuaca dan kualitas udara Bandung, Jakarta, dan Surabaya. Di tab **Analisis 2025**, pilih kota dan rentang tanggal untuk melihat suhu, kelembapan, total hujan, dan PM2.5. Grafik dan unduhan CSV mengikuti tanggal yang dipilih. Untuk membandingkan hujan dan PM2.5 antarbulan, aplikasi hanya memakai bulan dengan data lengkap.
 
-Tab **Sensor langsung** menampilkan suhu dan kelembapan yang dikirim perangkat, waktu pengukuran dalam WIB, serta perkiraan suhu satu jam setelah pengukuran terakhir. Kalau belum punya perangkat, coba kirim contoh dari PowerShell di bawah. Ada juga tab **Simulasi sensor** untuk memutar ulang 24 jam pertama arsip Bandung, satu jam per klik.
+Di tab **Prediksi suhu**, langsung terlihat perkiraan suhu rata-rata untuk besok sampai tujuh hari ke depan. Pilih Bandung, Jakarta, atau Surabaya untuk berpindah kota. Tanggal mengikuti WIB. Kalau sudah ada cukup pengukuran dari kemarin, model ikut memperhitungkannya.
 
-Di tab **Prediksi suhu**, pilih kota lalu masukkan suhu, kelembapan, dan jam pengukuran dalam WIB. Perkiraan suhu satu jam berikutnya langsung berubah saat isian diganti. Tab ini bisa dicoba sebelum sensor mengirim data.
+Tab **Sensor langsung** menunjukkan waktu, suhu, dan kelembapan terakhir yang dikirim tiap perangkat. Tab **Simulasi sensor** memutar ulang data Bandung pada 1 Januari 2025, satu jam per klik.
 
 ## Menjalankan dashboard
 
@@ -17,6 +17,27 @@ py -m venv .venv
 ```
 
 Buka alamat lokal yang muncul di terminal. Analisis dan simulasi langsung bisa dipakai karena arsip 2025 sudah ada di folder `data`.
+
+## Hubungkan ke Supabase
+
+1. Buat proyek di [Supabase Dashboard](https://supabase.com/dashboard). Simpan **database password** yang kamu buat. Setelah proyek siap, buka **Connect**, pilih **Session pooler**, dan salin URI PostgreSQL-nya. [Panduan koneksi Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)
+2. Buka `.streamlit/secrets.toml` di folder proyek. Untuk clone baru, salin dulu `.streamlit/secrets.example.toml` menjadi `.streamlit/secrets.toml`. Isi baris berikut dengan URI proyekmu. Ganti placeholder password di URI dengan database password. Karakter khusus pada bagian password perlu ditulis dalam format URL, misalnya `@` menjadi `%40`.
+
+   ```toml
+   SUPABASE_DB_URL = "postgresql://postgres.PROJECT_REF:PASSWORD@POOLER_HOST:5432/postgres"
+   ```
+
+3. Setelah menginstal dependensi, jalankan perintah berikut dari folder proyek. Perintah ini membuat tabel `public.cuaca_sensor` dan mengecek apakah tabel bisa dibaca. Setup bisa diulang.
+
+   ```powershell
+   .\.venv\Scripts\python penyimpanan.py
+   ```
+
+4. Jalankan kembali dashboard dan penerima sensor. Cek tulisan **Penyimpanan · Supabase** di tab **Sensor langsung**. Coba kirim satu pengukuran dengan contoh di bawah, lalu buka **Table Editor → cuaca_sensor** untuk melihat baris yang sama di cloud.
+
+Untuk Streamlit Community Cloud, isi `SUPABASE_DB_URL` yang sama di pengaturan **Secrets** aplikasi. Penerima tetap harus berjalan di mesin yang bisa dihubungi sensor dan punya akses internet ke Supabase. Simpan URI hanya pada penerima dan server Streamlit. ESP32 cukup memakai token penerima. [Pengaturan secrets Streamlit](https://docs.streamlit.io/develop/concepts/connections/secrets-management)
+
+Dengan URI kosong, demo memakai SQLite di `data/sensor.sqlite3`. Setelah URI diisi, kiriman baru dan pembacaan dashboard memakai Supabase. Riwayat lama tetap berada di SQLite. Jika cloud sedang bermasalah, penerima mengembalikan 503 agar perangkat bisa mencoba lagi dengan waktu pengukuran yang sama.
 
 ## Kirim data sensor
 
@@ -47,15 +68,11 @@ Kode 201 berarti pengukuran tersimpan. Buka **Sensor langsung** dan pilih perang
 
 Untuk ESP32 atau pengirim lain di Wi-Fi yang sama, jalankan `sensor.py --host 0.0.0.0` dengan Python dari venv. Gunakan alamat IPv4 laptop sebagai pengganti `127.0.0.1`. Perangkat mengirim HTTP POST ke `/pengukuran` dengan header dan kolom JSON yang sama. Isi `waktu` dengan waktu pengukuran beserta zona waktunya, misalnya `2026-11-18T08:30:00+07:00`. Gunakan jaringan lokal tepercaya untuk HTTP ini.
 
-## Perlu Supabase?
+## Cara model membuat prediksi
 
-Untuk demo satu jaringan, cukup jalankan penerima dan Streamlit di laptop yang sama. Penerima menyimpan kiriman ke `data/sensor.sqlite3` sehingga riwayat masih ada setelah aplikasi ditutup. Lokasinya bisa diatur lewat `SENSOR_DB` di kedua proses.
+Aplikasi menghitung suhu rata-rata dari 24 pengukuran per hari dalam arsip 2025, lalu melatih model musiman untuk setiap kota. Saat sensor mencatat suhu pada sedikitnya 18 jam berbeda kemarin (WIB), model menghitung selisih suhu kemarin dari pola musimannya. Pengaruh selisih itu berkurang untuk tanggal yang lebih jauh sesuai hubungan suhu antarhari dalam arsip. Setiap perangkat mendapat bobot yang sama dalam satu jam, lalu tiap jam mendapat bobot yang sama dalam rata-rata harian. Tab memeriksa ulang data setiap menit selama dashboard terbuka.
 
-Kalau dashboard dipasang di cloud sementara penerima tetap di laptop, dashboard cloud perlu jalur untuk membaca data itu. Pilihannya antara lain menjalankan kedua proses di satu server dengan disk persisten dan endpoint HTTPS, atau menghubungkan keduanya ke database bersama seperti Supabase. Versi ini memakai SQLite lokal. Push ke GitHub hanya mengirim kode dan arsip, sedangkan pengukuran baru tetap tersimpan di mesin penerima.
-
-## Tentang prediksi dan arsip
-
-Model regresi linear dilatih per kota dari pasangan data yang berjarak tepat satu jam. Masukannya suhu, kelembapan, dan jam lokal. Data Januari–September 2025 dipakai untuk latihan, lalu Oktober–Desember untuk pengujian. Di samping prediksi, dashboard menampilkan rata-rata selisih absolut dalam °C dan pembanding sederhana yang menganggap suhu akan tetap sama. Angka galat tersebut berasal dari arsip cuaca. Akurasi di lokasi pemasangan sensor perlu diukur dengan data perangkat itu sendiri.
+Untuk mengukur galat, model evaluasi hanya belajar dari Januari–September 2025. Sepanjang Oktober–Desember, pengujian membuat prediksi tujuh hari berulang kali dengan informasi yang tersedia pada tiap tanggal, lalu mencocokkannya dengan suhu sebenarnya dalam arsip. Model yang dipakai dashboard dilatih ulang dengan seluruh tahun 2025 secara otomatis. Saat sensor belum cukup, angka di dashboard hanya mencerminkan pola musiman dari satu tahun arsip. Model ini belum memasukkan prakiraan angin, awan, atau hujan mendatang.
 
 Arsip berisi data per jam sepanjang 2025. Cuaca berasal dari ECMWF ERA5 dan estimasi PM2.5 dari Copernicus Atmosphere Monitoring Service melalui Open-Meteo. Setiap kota diwakili satu titik model. [Arsip cuaca](https://open-meteo.com/en/docs/historical-weather-api) · [Data kualitas udara](https://open-meteo.com/en/docs/air-quality-api) · [Lisensi CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 

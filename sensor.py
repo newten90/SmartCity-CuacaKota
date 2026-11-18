@@ -1,28 +1,13 @@
 """Penerima HTTP untuk pengukuran sensor. Jalankan bersama dashboard."""
 import argparse
-from contextlib import closing
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
-from pathlib import Path
-import sqlite3
+from penyimpanan import DB_ERRORS, WIB, session
 
 from ambil_data import CITIES
-
-WIB = timezone(timedelta(hours=7))
-
-
-def connect():
-    path = os.getenv("SENSOR_DB") or Path(__file__).parent / "data/sensor.sqlite3"
-    db = sqlite3.connect(path)
-    db.row_factory = sqlite3.Row
-    db.execute("""CREATE TABLE IF NOT EXISTS readings (
-        kota TEXT, sensor TEXT, waktu TEXT, suhu REAL, kelembapan REAL,
-        PRIMARY KEY (kota, sensor, waktu))""")
-    return db
-
 
 def measurement(body):
     if not isinstance(body, dict) or body.get("kota") not in list(CITIES):
@@ -64,15 +49,11 @@ class Receiver(BaseHTTPRequestHandler):
             self.wfile.write(str(exc).encode())
             return
         try:
-            with closing(connect()) as db, db:
-                inserted = db.execute("INSERT OR IGNORE INTO readings VALUES (?,?,?,?,?)", row).rowcount
-                if not inserted:
-                    saved = db.execute("SELECT suhu, kelembapan FROM readings WHERE kota=? AND sensor=? AND waktu=?", row[:3]).fetchone()
-                    if tuple(saved) != row[3:]:
-                        return self.send_error(409)
-        except sqlite3.Error:
+            with session() as store:
+                status = store.save(row)
+        except DB_ERRORS:
             return self.send_error(503)
-        self.send_response(201 if inserted else 200)
+        self.send_response(status)
         self.end_headers()
 
 

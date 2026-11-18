@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Thread
@@ -17,7 +17,7 @@ from sensor import Receiver, ThreadingHTTPServer, WIB
 
 class TestSensor(unittest.TestCase):
     def test_http_dashboard(self):
-        with TemporaryDirectory() as folder, patch.dict(os.environ, SENSOR_DB=str(Path(folder) / "test.sqlite3")):
+        with TemporaryDirectory() as folder, patch.dict(os.environ, SUPABASE_DB_URL="", SENSOR_DB=str(Path(folder) / "test.sqlite3")):
             with ThreadingHTTPServer(("127.0.0.1", 0), Receiver) as server:
                 server.authorization = b"Bearer test"
                 worker = Thread(target=server.serve_forever, daemon=True)
@@ -30,8 +30,13 @@ class TestSensor(unittest.TestCase):
 
     def check_readings(self, port):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=35).run()
+        self.assertFalse(app.exception)
         self.assertTrue(any("Menunggu kiriman" in message.value for message in app.info))
         now = datetime.now(WIB)
+        tab = app.tabs[1]
+        self.assertEqual(len(tab.number_input), 0)
+        self.assertEqual(len(tab.dataframe[0].value), 7)
+        self.assertEqual(tab.dataframe[0].value.iloc[0, 0], (now + timedelta(days=1)).strftime("%d/%m/%Y"))
         body = dict(sensor="uji", kota="Bandung", waktu=now.isoformat(), suhu=26, kelembapan=78)
 
         def send(data, token="test"):
@@ -49,15 +54,20 @@ class TestSensor(unittest.TestCase):
         self.assertEqual(send(body), 201)
         self.assertEqual(send(body), 200)
         self.assertEqual(send(dict(body, suhu=27)), 409)
-        self.assertEqual(send(dict(body, waktu=(now - timedelta(hours=1)).isoformat(), suhu=20)), 201)
+        earlier = now.replace(minute=0, second=0, microsecond=0)
+        self.assertEqual(send(dict(body, waktu=earlier.isoformat(), suhu=20)), 201)
         app.run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.metric[-3].value, "26.0 °C")
+        self.assertEqual(app.metric[-2].value, "26.0 °C")
         self.assertEqual(len(app.dataframe[-1].value), 2)
         models = train(load())
         self.assertEqual(set(models), {"Bandung", "Surabaya", "Jakarta"})
-        for weights, mae, baseline in models.values():
-            self.assertLess(mae, baseline)
-            self.assertGreater(mae, 0)
-        predicted = forecast(models["Bandung"][0], 26, 78, now)
-        self.assertEqual(app.metric[-1].value, f"{predicted:.1f} °C")
+        yesterday = now.date() - timedelta(days=1)
+        for hour in range(18):
+            stamp = datetime.combine(yesterday, time(hour), WIB)
+            self.assertEqual(send(dict(body, sensor="harian", waktu=stamp.isoformat(), suhu=30)), 201)
+        app.run()
+        self.assertFalse(app.exception)
+        self.assertIn("18 jam terukur", app.tabs[1].caption[0].value)
+        predicted = forecast(models["Bandung"][0], now.date(), 30)
+        self.assertEqual(list(app.tabs[1].dataframe[0].value.iloc[:, 1]), predicted.round(1).tolist())

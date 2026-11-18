@@ -1,12 +1,10 @@
-from contextlib import closing
-from datetime import date, datetime, time, timedelta
-import sqlite3
+from datetime import date, datetime, timedelta
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 from analisis import FIELDS, TEMP, RH, RAIN, PM, LABELS, NAMES, aggregate, load, monthly
-from prediksi import train, forecast
-from sensor import WIB, connect
+from prediksi import MIN_HOURS, train, forecast
+from penyimpanan import DB_ERRORS, WIB, session
 
 st.set_page_config(page_title="Cuaca Kota", layout="wide")
 @st.cache_data
@@ -92,21 +90,34 @@ def models():
     return train(dataset())
 
 
+@st.fragment(run_every="60s")
+def show_prediction():
+    st.subheader("Prediksi suhu rata-rata 7 hari ke depan")
+    city = st.selectbox("Kota prediksi", sorted(data.kota.unique()))
+    today = datetime.now(WIB).date()
+    yesterday = today - timedelta(days=1)
+    observed = None
+    try:
+        with session() as store:
+            temp, hours = store.daily_temperature(city, yesterday)
+        if hours >= MIN_HOURS:
+            observed = temp
+            st.caption(f"Memakai arsip 2025 dan suhu kemarin di {city} ({hours} jam terukur, rata-rata {temp:.1f} °C).")
+        else:
+            st.caption(f"Estimasi dari pola musiman arsip 2025. Data kemarin mencakup {hours} dari minimal {MIN_HOURS} jam.")
+    except DB_ERRORS:
+        st.warning("Riwayat sensor belum bisa dibaca. Estimasi memakai pola musiman arsip 2025.")
+    model, errors = models()[city]
+    estimates = forecast(model, today, observed)
+    frame = estimates.rename("Suhu rata-rata (°C)").rename_axis("Tanggal (WIB)").reset_index()
+    frame["Tanggal (WIB)"] = frame["Tanggal (WIB)"].dt.strftime("%d/%m/%Y")
+    st.dataframe(frame.round(1), hide_index=True, use_container_width=True)
+    st.caption(f"Galat absolut rata-rata pada uji Oktober–Desember 2025 untuk {city}: "
+               f"{errors[observed is not None]:.2f} °C (rata-rata seluruh horizon).")
+
+
 with prediction:
-    st.subheader("Prediksi suhu satu jam ke depan")
-    st.write("Pilih kota dan isi kondisi cuaca untuk mencoba model. Nilai awal adalah contoh.")
-    place = st.selectbox("Kota prediksi", sorted(data.kota.unique()))
-    a, b, c = st.columns(3)
-    temp = a.number_input("Suhu saat pengukuran (°C)", -80.0, 70.0, 26.0, step=0.1)
-    humidity = b.number_input("Kelembapan saat pengukuran (%)", 0.0, 100.0, 78.0, step=0.1)
-    hour = c.time_input("Jam pengukuran (WIB)", value=time(8))
-    stamp = datetime.combine(date.today(), hour)
-    target = stamp + timedelta(hours=1)
-    following_day = " hari berikutnya" if target.date() != stamp.date() else ""
-    weights, mae, _ = models()[place]
-    value = forecast(weights, temp, humidity, stamp)
-    st.metric(f"Perkiraan suhu pukul {target:%H:%M} WIB{following_day}", f"{value:.1f} °C")
-    st.caption(f"Rata-rata galat model untuk {place} pada arsip Oktober–Desember 2025 sebesar {mae:.2f} °C.")
+    show_prediction()
 
 
 @st.fragment(run_every="5s")
@@ -114,31 +125,25 @@ def show_live():
     st.subheader("Pengukuran sensor")
     st.caption("Dashboard memeriksa kiriman baru setiap 5 detik.")
     try:
-        with closing(connect()) as db:
-            devices = [tuple(row) for row in db.execute("SELECT DISTINCT kota, sensor FROM readings ORDER BY kota, sensor")]
+        with session() as store:
+            st.caption("Penyimpanan · " + ("Supabase" if store.cloud else "SQLite lokal"))
+            devices = store.devices()
             if not devices:
                 st.info("Menunggu kiriman pertama. Ikuti bagian Kirim data sensor di README untuk mencoba.")
                 return
             city, device = st.selectbox("Perangkat", devices, format_func=lambda pair: " · ".join(pair))
-            history = pd.read_sql_query(
-                "SELECT waktu, suhu, kelembapan FROM readings WHERE kota=? AND sensor=? ORDER BY waktu DESC LIMIT 60",
-                db, params=(city, device))
-    except sqlite3.Error:
-        st.error("Riwayat sensor belum bisa dibaca. Periksa lokasi dan izin tulis SENSOR_DB.")
+            history = pd.DataFrame(store.history(city, device), columns=["waktu", "suhu", "kelembapan"])
+    except DB_ERRORS:
+        st.error("Riwayat sensor belum bisa dibaca. Periksa pengaturan database dan jalankan setup Supabase jika dipakai.")
         return
     row = history.iloc[0]
     stamp = datetime.fromisoformat(row.waktu)
     st.write(f"Pengukuran terakhir · {stamp:%d/%m/%Y %H:%M:%S} WIB")
     if datetime.now(WIB) - stamp > timedelta(minutes=5):
         st.warning("Sudah lebih dari 5 menit sejak pengukuran terakhir.")
-    weights, mae, baseline = models()[city]
-    target = stamp + timedelta(hours=1)
-    a, b, c = st.columns(3)
+    a, b = st.columns(2)
     a.metric("Suhu terukur", f"{row.suhu:.1f} °C")
     b.metric("Kelembapan terukur", f"{row.kelembapan:.1f} %")
-    c.metric(f"Prediksi suhu · {target:%d/%m %H:%M} WIB", f"{forecast(weights, row.suhu, row.kelembapan, stamp):.1f} °C")
-    st.caption(f"Uji arsip {city}, Oktober–Desember 2025 · Rata-rata galat absolut model {mae:.2f} °C. "
-               f"Jika suhu dianggap tetap, galatnya {baseline:.2f} °C.")
     st.dataframe(history.assign(waktu=history.waktu.map(lambda value: datetime.fromisoformat(value).strftime("%d/%m/%Y %H:%M:%S")))
                  .rename(columns={"waktu":"Waktu (WIB)", "suhu":"Suhu (°C)", "kelembapan":"Kelembapan (%)"}),
                  hide_index=True, use_container_width=True)
