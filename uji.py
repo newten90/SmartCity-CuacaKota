@@ -10,12 +10,12 @@ assert d[FIELDS].isna().sum().sum()==0
 app=AppTest.from_file(str(ROOT/"app.py"),default_timeout=35).run()
 results=[]
 for city in sorted(d.kota.unique()):
-    app.selectbox[0].select(city)
+    app.tabs[1].selectbox[0].select(city)
     for start,end in [("2025-01-01","2025-12-31"),("2025-02-10","2025-02-16"),("2025-08-01","2025-08-01"),("2025-12-20","2025-12-31")]:
         app.date_input[0].set_value((date.fromisoformat(start),date.fromisoformat(end))).run()
         assert not app.exception
         part=d[(d.kota==city)&d.tanggal.between(start,end)]
-        for metric,f in zip(app.metric,FIELDS):
+        for metric,f in zip(app.tabs[1].metric,FIELDS):
             ref=part[f].sum() if f==RAIN else part[f].mean()
             assert metric.value==f"{ref:.2f}", (city,f,metric.value,ref)
             results.append([city,start,end,f,metric.value,f"{ref:.2f}","sesuai"])

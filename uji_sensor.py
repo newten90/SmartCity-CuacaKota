@@ -31,12 +31,13 @@ class TestSensor(unittest.TestCase):
     def check_readings(self, port):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=35).run()
         self.assertFalse(app.exception)
-        self.assertEqual([tab.label for tab in app.tabs], ["Analisis 2025", "Prediksi suhu", "Simulasi sensor"])
+        self.assertEqual([tab.label for tab in app.tabs], ["Cuaca & prediksi", "Analisis 2025", "Simulasi sensor"])
         now = datetime.now(WIB)
-        tab = app.tabs[1]
+        tab = app.tabs[0]
         self.assertEqual(len(tab.number_input), 0)
-        self.assertEqual(len(tab.dataframe[0].value), 7)
-        self.assertEqual(tab.dataframe[0].value.iloc[0, 0], (now + timedelta(days=1)).strftime("%d/%m/%Y"))
+        daily = next(table.value for table in tab.dataframe if "Suhu rata-rata (°C)" in table.value)
+        self.assertEqual(len(daily), 7)
+        self.assertEqual(daily.iloc[0, 0], (now + timedelta(days=1)).strftime("%d/%m/%Y"))
         body = dict(sensor="uji", kota="Bandung", waktu=now.isoformat(), suhu=26, kelembapan=78)
 
         def send(data, token="test"):
@@ -63,7 +64,11 @@ class TestSensor(unittest.TestCase):
             history = store.history("Bandung", "uji")
         self.assertEqual(len(history), 2)
         self.assertEqual(history[0][1], 26)
-        models = train(load())
+        from cuaca_online import SNAPSHOT
+        import pandas as pd
+        online = pd.read_csv(SNAPSHOT)
+        online["tanggal"] = online.waktu.str[:10]
+        models = train(pd.concat([load(), online[online.tanggal < now.date().isoformat()]]))
         self.assertEqual(set(models), {"Bandung", "Surabaya", "Jakarta"})
         yesterday = now.date() - timedelta(days=1)
         for hour in range(18):
@@ -71,6 +76,7 @@ class TestSensor(unittest.TestCase):
             self.assertEqual(send(dict(body, sensor="harian", waktu=stamp.isoformat(), suhu=30)), 201)
         app.run()
         self.assertFalse(app.exception)
-        self.assertIn("18 jam terukur", app.tabs[1].caption[0].value)
+        self.assertTrue(any("18 jam terukur" in item.value for item in app.tabs[0].caption))
         predicted = forecast(models["Bandung"][0], now.date(), 30)
-        self.assertEqual(list(app.tabs[1].dataframe[0].value.iloc[:, 1]), predicted.round(1).tolist())
+        daily = next(table.value for table in app.tabs[0].dataframe if "Suhu rata-rata (°C)" in table.value)
+        self.assertEqual(list(daily.iloc[:, 1]), predicted.round(1).tolist())

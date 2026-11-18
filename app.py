@@ -5,6 +5,8 @@ import streamlit as st
 from analisis import FIELDS, TEMP, RH, RAIN, PM, LABELS, NAMES, aggregate, load, monthly
 from prediksi import MIN_HOURS, train, forecast
 from penyimpanan import DB_ERRORS, WIB, session
+from cuaca_online import COLS, SNAPSHOT
+from tampilan_cuaca import show_weather
 
 st.set_page_config(page_title="Cuaca Kota", layout="wide")
 @st.cache_data
@@ -26,7 +28,7 @@ data = dataset()
 st.caption("TELEMATIKA  /  SMART CITY")
 st.title("Cuaca dan udara perkotaan")
 st.write("Bandung, Jakarta, dan Surabaya · Waktu Indonesia Barat")
-analysis, prediction, replay = st.tabs(["Analisis 2025", "Prediksi suhu", "Simulasi sensor"])
+prediction, analysis, replay = st.tabs(["Cuaca & prediksi", "Analisis 2025", "Simulasi sensor"])
 with analysis:
     c1,c2 = st.columns([1,2])
     city = c1.selectbox("Kota", sorted(data.kota.unique()))
@@ -93,35 +95,66 @@ with replay:
     show_replay()
 
 
-@st.cache_resource
-def models():
-    return train(dataset())
+@st.cache_data(ttl=900, show_spinner=False)
+def online_history():
+    try:
+        with session() as store:
+            if store.cloud:
+                rows = store.db.execute("""SELECT kota,waktu AT TIME ZONE 'Asia/Jakarta',
+                    temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code,pm2_5,sumber
+                    FROM public.cuaca_online ORDER BY kota,waktu""").fetchall()
+                if rows:
+                    return pd.DataFrame(rows, columns=COLS), "Supabase"
+    except DB_ERRORS:
+        pass
+    return pd.read_csv(SNAPSHOT, parse_dates=["waktu"]), "salinan impor di repositori"
+
+
+@st.cache_data(show_spinner=False)
+def models(recent):
+    return train(pd.concat([dataset()[["kota", "tanggal", TEMP]], recent], ignore_index=True))
 
 
 @st.fragment(run_every="60s")
 def show_prediction():
-    st.subheader("Prediksi suhu rata-rata 7 hari ke depan")
-    city = st.selectbox("Kota prediksi", sorted(data.kota.unique()))
+    city = st.selectbox("Kota cuaca", sorted(data.kota.unique()))
     today = datetime.now(WIB).date()
+    show_weather(city, today)
+    history, source = online_history()
+    history = history.assign(tanggal=history.waktu.dt.strftime("%Y-%m-%d"))
+    local = history[history.kota == city]
+    st.subheader("Estimasi model lokal")
     yesterday = today - timedelta(days=1)
     observed = None
+    yesterday_online = local[local.tanggal == yesterday.isoformat()][TEMP].dropna()
+    if len(yesterday_online) == 24:
+        observed = yesterday_online.mean()
     try:
         with session() as store:
             temp, hours = store.daily_temperature(city, yesterday)
         if hours >= MIN_HOURS:
             observed = temp
-            st.caption(f"Memakai arsip 2025 dan suhu kemarin di {city} ({hours} jam terukur, rata-rata {temp:.1f} °C).")
-        else:
-            st.caption(f"Estimasi dari pola musiman arsip 2025. Data kemarin mencakup {hours} dari minimal {MIN_HOURS} jam.")
+            st.caption(f"Sensor kemarin di {city}: {hours} jam terukur, rata-rata {temp:.1f} °C.")
     except DB_ERRORS:
-        st.warning("Riwayat sensor belum bisa dibaca. Estimasi memakai pola musiman arsip 2025.")
-    model, errors = models()[city]
+        st.caption("Riwayat perangkat sedang tidak tersedia.")
+    training = history.loc[history.tanggal < today.isoformat(), ["kota", "tanggal", TEMP]]
+    model, errors = models(training)[city]
+    st.caption("Model belajar dari hari lengkap di arsip 2025 dan riwayat sejak Oktober 2026. "
+               "Pola musiman menghasilkan perubahan yang lebih perlahan daripada prakiraan cuaca operasional.")
     estimates = forecast(model, today, observed)
     frame = estimates.rename("Suhu rata-rata (°C)").rename_axis("Tanggal (WIB)").reset_index()
     frame["Tanggal (WIB)"] = frame["Tanggal (WIB)"].dt.strftime("%d/%m/%Y")
     st.dataframe(frame.round(1), hide_index=True, use_container_width=True)
     st.caption(f"Galat absolut rata-rata pada uji Oktober–Desember 2025 untuk {city}: "
                f"{errors[observed is not None]:.2f} °C (rata-rata seluruh horizon).")
+    with st.expander("Riwayat per jam sejak Oktober 2026"):
+        st.caption(f"{source} · {len(local):,} jam · terakhir {local.waktu.max():%d/%m/%Y %H:%M} WIB. "
+                   "PM2.5 dari CAMS via Open-Meteo.")
+        display = local.sort_values("waktu", ascending=False).rename(columns={
+            **NAMES, "waktu":"Waktu (WIB)", "precipitation":"Presipitasi (mm)",
+            "wind_speed_10m":"Angin (km/j)", "sumber":"Sumber cuaca", "weather_code":"Kode WMO"})
+        st.dataframe(display.drop(columns=["kota", "tanggal"]), hide_index=True, use_container_width=True)
+        st.download_button("Unduh riwayat per jam", local.to_csv(index=False), f"{city}_riwayat_online.csv", "text/csv")
 
 
 with prediction:

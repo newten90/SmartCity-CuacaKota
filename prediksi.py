@@ -45,7 +45,7 @@ def train(data):
         series.index = pd.to_datetime(series.index)
         evaluation_model = fit(series.loc[:"2025-09-30"])
         errors = {False: [], True: []}
-        for issue in pd.date_range("2025-10-01", series.index.max() - timedelta(days=HORIZON)):
+        for issue in pd.date_range("2025-10-01", pd.Timestamp("2025-12-31") - timedelta(days=HORIZON)):
             yesterday = series.get(issue - timedelta(days=1))
             for adjusted in errors:
                 if adjusted and pd.isna(yesterday):
