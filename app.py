@@ -26,7 +26,7 @@ data = dataset()
 st.caption("TELEMATIKA  /  SMART CITY")
 st.title("Cuaca dan udara perkotaan")
 st.write("Bandung, Jakarta, dan Surabaya · Waktu Indonesia Barat")
-analysis, prediction, replay, live = st.tabs(["Analisis 2025", "Prediksi suhu", "Simulasi sensor", "Sensor langsung"])
+analysis, prediction, replay = st.tabs(["Analisis 2025", "Prediksi suhu", "Simulasi sensor"])
 with analysis:
     c1,c2 = st.columns([1,2])
     city = c1.selectbox("Kota", sorted(data.kota.unique()))
@@ -65,7 +65,7 @@ with analysis:
 @st.fragment
 def show_replay():
     st.subheader("Sensor virtual Bandung")
-    st.write("Putar ulang 24 jam pertama pada 1 Januari 2025. Setiap klik mengambil satu catatan historis. Ringkasan pada tab Analisis tetap memakai arsip aslinya.")
+    st.caption("Bandung · 1 Januari 2025 · Simulasi dari arsip per jam")
     records = data[(data.kota=="Bandung") & (data.tanggal=="2025-01-01")].sort_values("jam")
     st.session_state.setdefault("pos",0)
     def advance():
@@ -78,8 +78,16 @@ def show_replay():
     b.button("Ulangi dari awal",on_click=reset)
     st.progress(n/len(records),text=f"{n} dari {len(records)} catatan")
     if n:
-        row=records.iloc[n-1]
-        st.json({"id_sensor":"BDG-V01","waktu_WIB":row.waktu,"suhu_C":row[TEMP],"kelembapan_persen":row[RH],"jenis":"simulasi historis"})
+        readings = records.iloc[:n]
+        row = readings.iloc[-1]
+        st.subheader(f"Pengukuran pukul {int(row.jam):02d}.00 WIB")
+        a, b = st.columns(2)
+        a.metric("Suhu", f"{row[TEMP]:.1f} °C", border=True)
+        b.metric("Kelembapan", f"{row[RH]:.0f} %", border=True)
+        if n > 1:
+            chart(readings, "jam", TEMP, "Perubahan suhu sejak tengah malam", "Jam (WIB)")
+    else:
+        st.info("Klik Data berikutnya untuk melihat pengukuran pukul 00.00 WIB.")
     if n==len(records): st.success("Seluruh catatan sudah ditampilkan.")
 with replay:
     show_replay()
@@ -120,35 +128,4 @@ with prediction:
     show_prediction()
 
 
-@st.fragment(run_every="5s")
-def show_live():
-    st.subheader("Pengukuran sensor")
-    st.caption("Dashboard memeriksa kiriman baru setiap 5 detik.")
-    try:
-        with session() as store:
-            st.caption("Penyimpanan · " + ("Supabase" if store.cloud else "SQLite lokal"))
-            devices = store.devices()
-            if not devices:
-                st.info("Menunggu kiriman pertama. Ikuti bagian Kirim data sensor di README untuk mencoba.")
-                return
-            city, device = st.selectbox("Perangkat", devices, format_func=lambda pair: " · ".join(pair))
-            history = pd.DataFrame(store.history(city, device), columns=["waktu", "suhu", "kelembapan"])
-    except DB_ERRORS:
-        st.error("Riwayat sensor belum bisa dibaca. Periksa pengaturan database dan jalankan setup Supabase jika dipakai.")
-        return
-    row = history.iloc[0]
-    stamp = datetime.fromisoformat(row.waktu)
-    st.write(f"Pengukuran terakhir · {stamp:%d/%m/%Y %H:%M:%S} WIB")
-    if datetime.now(WIB) - stamp > timedelta(minutes=5):
-        st.warning("Sudah lebih dari 5 menit sejak pengukuran terakhir.")
-    a, b = st.columns(2)
-    a.metric("Suhu terukur", f"{row.suhu:.1f} °C")
-    b.metric("Kelembapan terukur", f"{row.kelembapan:.1f} %")
-    st.dataframe(history.assign(waktu=history.waktu.map(lambda value: datetime.fromisoformat(value).strftime("%d/%m/%Y %H:%M:%S")))
-                 .rename(columns={"waktu":"Waktu (WIB)", "suhu":"Suhu (°C)", "kelembapan":"Kelembapan (%)"}),
-                 hide_index=True, use_container_width=True)
-
-
-with live:
-    show_live()
 st.caption("Data historis diolah dari Open-Meteo · cuaca ERA5 (ECMWF), kualitas udara Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo · CC BY 4.0. Satu titik model per kota.")

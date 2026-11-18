@@ -4,7 +4,7 @@ Cuaca Kota menampilkan cuaca dan kualitas udara Bandung, Jakarta, dan Surabaya. 
 
 Di tab **Prediksi suhu**, langsung terlihat perkiraan suhu rata-rata untuk besok sampai tujuh hari ke depan. Pilih Bandung, Jakarta, atau Surabaya untuk berpindah kota. Tanggal mengikuti WIB. Kalau sudah ada cukup pengukuran dari kemarin, model ikut memperhitungkannya.
 
-Tab **Sensor langsung** menunjukkan waktu, suhu, dan kelembapan terakhir yang dikirim tiap perangkat. Tab **Simulasi sensor** memutar ulang data Bandung pada 1 Januari 2025, satu jam per klik.
+Tab **Simulasi sensor** memutar ulang data Bandung pada 1 Januari 2025, satu jam per klik. Suhu dan kelembapan muncul dalam dua kartu. Grafik suhu mulai terlihat setelah pengukuran kedua. Simulasi hanya membaca arsip. Untuk melihat kiriman perangkat asli, buka tabel `cuaca_sensor` di Supabase.
 
 ## Menjalankan dashboard
 
@@ -33,7 +33,7 @@ Buka alamat lokal yang muncul di terminal. Analisis dan simulasi langsung bisa d
    .\.venv\Scripts\python penyimpanan.py
    ```
 
-4. Jalankan kembali dashboard dan penerima sensor. Cek tulisan **Penyimpanan · Supabase** di tab **Sensor langsung**. Coba kirim satu pengukuran dengan contoh di bawah, lalu buka **Table Editor → cuaca_sensor** untuk melihat baris yang sama di cloud.
+4. Jalankan kembali dashboard dan penerima sensor. Coba kirim satu pengukuran dengan contoh di bawah, lalu buka **Table Editor → cuaca_sensor** untuk melihat baris yang sama di cloud.
 
 Untuk Streamlit Community Cloud, isi `SUPABASE_DB_URL` yang sama di pengaturan **Secrets** aplikasi. Penerima tetap harus berjalan di mesin yang bisa dihubungi sensor dan punya akses internet ke Supabase. Simpan URI hanya pada penerima dan server Streamlit. ESP32 cukup memakai token penerima. [Pengaturan secrets Streamlit](https://docs.streamlit.io/develop/concepts/connections/secrets-management)
 
@@ -64,7 +64,7 @@ Invoke-WebRequest -UseBasicParsing -Method Post -Uri 'http://127.0.0.1:8765/peng
     -Headers @{ Authorization = "Bearer $token" } -ContentType 'application/json' -Body $body
 ```
 
-Kode 201 berarti pengukuran tersimpan. Buka **Sensor langsung** dan pilih perangkat. Dashboard membaca ulang data setiap 5 detik dan menampilkan hingga 60 pengukuran terakhir perangkat itu. Ulangi blok mulai dari `$body` dengan suhu berbeda untuk melihat pembaruan. Jika kota, nama sensor, dan waktunya sama, kiriman ulang mendapat 200. Jika nilainya berbeda untuk pengukuran yang sama, penerima mengembalikan 409.
+Kode 201 berarti pengukuran tersimpan. Di Supabase, buka **Table Editor → cuaca_sensor** dan segarkan tabel untuk melihat nama perangkat, waktu, suhu, dan kelembapannya. Ulangi blok mulai dari `$body` dengan suhu berbeda untuk melihat pembaruan. Jika kota, nama sensor, dan waktunya sama, kiriman ulang mendapat 200. Jika nilainya berbeda untuk pengukuran yang sama, penerima mengembalikan 409.
 
 Untuk ESP32 atau pengirim lain di Wi-Fi yang sama, jalankan `sensor.py --host 0.0.0.0` dengan Python dari venv. Gunakan alamat IPv4 laptop sebagai pengganti `127.0.0.1`. Perangkat mengirim HTTP POST ke `/pengukuran` dengan header dan kolom JSON yang sama. Isi `waktu` dengan waktu pengukuran beserta zona waktunya, misalnya `2026-11-18T08:30:00+07:00`. Gunakan jaringan lokal tepercaya untuk HTTP ini.
 

@@ -31,7 +31,7 @@ class TestSensor(unittest.TestCase):
     def check_readings(self, port):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=35).run()
         self.assertFalse(app.exception)
-        self.assertTrue(any("Menunggu kiriman" in message.value for message in app.info))
+        self.assertEqual([tab.label for tab in app.tabs], ["Analisis 2025", "Prediksi suhu", "Simulasi sensor"])
         now = datetime.now(WIB)
         tab = app.tabs[1]
         self.assertEqual(len(tab.number_input), 0)
@@ -58,8 +58,11 @@ class TestSensor(unittest.TestCase):
         self.assertEqual(send(dict(body, waktu=earlier.isoformat(), suhu=20)), 201)
         app.run()
         self.assertFalse(app.exception)
-        self.assertEqual(app.metric[-2].value, "26.0 °C")
-        self.assertEqual(len(app.dataframe[-1].value), 2)
+        from penyimpanan import session
+        with session() as store:
+            history = store.history("Bandung", "uji")
+        self.assertEqual(len(history), 2)
+        self.assertEqual(history[0][1], 26)
         models = train(load())
         self.assertEqual(set(models), {"Bandung", "Surabaya", "Jakarta"})
         yesterday = now.date() - timedelta(days=1)
