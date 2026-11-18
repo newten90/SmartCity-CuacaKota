@@ -1,12 +1,18 @@
 # Cuaca Kota
 
-Cuaca Kota menampilkan cuaca dan kualitas udara Bandung, Jakarta, dan Surabaya. Di tab **Analisis 2025**, pilih kota dan rentang tanggal untuk melihat suhu, kelembapan, total hujan, dan PM2.5. Grafik dan unduhan CSV mengikuti tanggal yang dipilih. Untuk membandingkan hujan dan PM2.5 antarbulan, aplikasi hanya memakai bulan dengan data lengkap.
+Cuaca Kota dibuka dengan cuaca Bandung saat ini. Pilih Jakarta atau Surabaya untuk melihat kota lain. Semua jam memakai WIB.
+
+Laporan akhir memuat data tiga kota, tangkapan layar, hasil pengujian, dan alur demo tujuh menit. [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf)
+
+![Halaman cuaca Bandung](laporan/gambar/01-cuaca.png)
 
 Tab **Cuaca & prediksi** menampilkan kondisi kota saat ini, suhu terasa, kelembapan, angin, waktu terbit dan terbenam matahari, serta prakiraan per jam. Geser deretan jam untuk melihat 24 jam berikutnya. Tabel tujuh hari memperlihatkan kondisi, rentang suhu, kemungkinan hujan, jumlah presipitasi, dan angin maksimum per hari. Angka berasal dari prakiraan operasional Open-Meteo dan diperbarui paling sering setiap 15 menit saat dashboard dibuka. [Weather Forecast API](https://open-meteo.com/en/docs)
 
 Di bawahnya ada estimasi suhu rata-rata dari model lokal, serta riwayat per jam yang bisa diunduh sejak **1 Oktober 2026**. Riwayat ini menyimpan data grid meteorologi untuk titik koordinat tiap kota. Data perangkat IoT tetap berada di tabel tersendiri.
 
-Tab **Simulasi sensor** memutar ulang data Bandung pada 1 Januari 2025, satu jam per klik. Suhu dan kelembapan muncul dalam dua kartu. Grafik suhu mulai terlihat setelah pengukuran kedua. Simulasi hanya membaca arsip. Untuk melihat kiriman perangkat asli, buka tabel `cuaca_sensor` di Supabase.
+Tab **Analisis 2025** menampilkan suhu, kelembapan, total hujan, dan estimasi PM2.5 menurut kota dan rentang tanggal. Arsip 2025 juga menjadi bahan latih dan evaluasi model lokal.
+
+Tab **Simulasi sensor** memutar ulang hari lengkap terbaru untuk Bandung di riwayat daring, satu jam per klik. Suhu dan kelembapan muncul dalam dua kartu. Grafik suhu mulai terlihat setelah pengukuran kedua. Simulasi membaca riwayat yang sudah tersimpan. Untuk melihat kiriman perangkat asli, buka tabel `cuaca_sensor` di Supabase.
 
 ## Menjalankan dashboard
 
@@ -18,7 +24,7 @@ py -m venv .venv
 .\.venv\Scripts\python -m streamlit run app.py
 ```
 
-Buka alamat lokal yang muncul di terminal. Analisis dan simulasi langsung bisa dipakai karena arsip 2025 sudah ada di folder `data`.
+Buka alamat lokal yang muncul di terminal. Arsip analisis dan salinan riwayat simulasi sudah tersedia di folder `data`. Cuaca terkini membutuhkan internet.
 
 ## Hubungkan ke Supabase
 

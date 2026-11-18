@@ -67,8 +67,17 @@ with analysis:
 @st.fragment
 def show_replay():
     st.subheader("Sensor virtual Bandung")
-    st.caption("Bandung · 1 Januari 2025 · Simulasi dari arsip per jam")
-    records = data[(data.kota=="Bandung") & (data.tanggal=="2025-01-01")].sort_values("jam")
+    history, source = online_history()
+    bandung = history.loc[history.kota == "Bandung"].sort_values("waktu")
+    days = bandung.waktu.dt.normalize()
+    counts = days.value_counts()
+    complete = counts[counts.eq(24)]
+    if complete.empty:
+        st.info("Belum ada hari dengan 24 catatan untuk simulasi Bandung.")
+        return
+    day = complete.index.max()
+    records = bandung.loc[days.eq(day)].assign(jam=lambda frame: frame.waktu.dt.hour)
+    st.caption(f"Bandung · {day:%d/%m/%Y} · Putar ulang 24 jam dari riwayat Open-Meteo ({source}).")
     st.session_state.setdefault("pos",0)
     def advance():
         st.session_state.pos=min(len(records),st.session_state.pos+1)
@@ -91,8 +100,7 @@ def show_replay():
     else:
         st.info("Klik Data berikutnya untuk melihat pengukuran pukul 00.00 WIB.")
     if n==len(records): st.success("Seluruh catatan sudah ditampilkan.")
-with replay:
-    show_replay()
+
 
 
 @st.cache_data(ttl=900, show_spinner=False)
@@ -129,6 +137,7 @@ def show_prediction():
     yesterday_online = local[local.tanggal == yesterday.isoformat()][TEMP].dropna()
     if len(yesterday_online) == 24:
         observed = yesterday_online.mean()
+    hours = 0
     try:
         with session() as store:
             temp, hours = store.daily_temperature(city, yesterday)
@@ -138,6 +147,10 @@ def show_prediction():
     except DB_ERRORS:
         st.caption("Riwayat perangkat sedang tidak tersedia.")
     training = history.loc[history.tanggal < today.isoformat(), ["kota", "tanggal", TEMP]]
+    if observed is None:
+        st.caption("Data kemarin belum lengkap. Estimasi memakai pola musiman kota.")
+    elif len(yesterday_online) == 24 and hours < MIN_HOURS:
+        st.caption(f"Suhu acuan kemarin dari 24 jam Open-Meteo: {observed:.1f} °C.")
     model, errors = models(training)[city]
     st.caption("Model belajar dari hari lengkap di arsip 2025 dan riwayat sejak Oktober 2026. "
                "Pola musiman menghasilkan perubahan yang lebih perlahan daripada prakiraan cuaca operasional.")
@@ -159,6 +172,9 @@ def show_prediction():
 
 with prediction:
     show_prediction()
+
+with replay:
+    show_replay()
 
 
 st.caption("Data historis diolah dari Open-Meteo · cuaca ERA5 (ECMWF), kualitas udara Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo · CC BY 4.0. Satu titik model per kota.")
