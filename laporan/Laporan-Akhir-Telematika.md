@@ -1,6 +1,6 @@
 # Dashboard Cuaca Kota Berbasis Cloud
 
-*Laporan akhir Telematika · 19 November 2026*
+*Laporan Kemajuan Minggu 2 · Telematika · 19 November 2026*
 *Studi Bandung dengan pembanding Jakarta dan Surabaya · Topik 6, Smart City Dashboard Sederhana*
 
 | Anggota | NPM | Kelas |
@@ -13,7 +13,7 @@ Teknik Informatika, FMIPA Universitas Padjadjaran
 
 ## 1. Latar belakang
 
-Pada minggu pertama kami ingin mengetahui kapan hujan paling banyak turun di Bandung dan bagaimana polanya dibandingkan dengan Jakarta dan Surabaya. Setelah dashboard dicoba, kebutuhan lain ikut terlihat. Saat seseorang membuka aplikasi sebelum berangkat, yang paling berguna justru suhu sekarang dan kemungkinan hujan beberapa jam lagi. Karena itu, halaman pertama sekarang menampilkan cuaca terkini. Pertanyaan tentang tahun 2025 tetap bisa dijawab lewat tab analisis.
+Minggu ini kami menggabungkan prakiraan cuaca dan arsip tiga kota dalam satu dashboard. Saat aplikasi dibuka, pengguna langsung melihat cuaca Bandung dan peluang hujan beberapa jam ke depan. Untuk pertanyaan seperti “bulan apa yang paling basah di Bandung?”, pengguna dapat membuka tab Analisis 2025 dan membandingkannya dengan Jakarta dan Surabaya.
 
 ![Cuaca Bandung dan deretan prakiraan per jam](gambar/01-cuaca.png)
 
@@ -21,11 +21,11 @@ Pada minggu pertama kami ingin mengetahui kapan hujan paling banyak turun di Ban
 
 ## 2. Tujuan dan ruang lingkup
 
-Pengguna bisa memilih kota, melihat kondisi sekarang, membandingkan prakiraan tujuh hari, dan mengunduh riwayat per jam. Untuk analisis, kami mempertahankan empat pertanyaan dari minggu pertama tentang bulan terbasah dan terkering, perbedaan suhu antarkota, hubungan suhu dengan kelembapan, serta hubungan hujan dengan PM2.5. Satu koordinat mewakili setiap kota. Hujan di kecamatan tertentu bisa berbeda dari angka yang tampil.
+Pengguna bisa memilih kota, melihat kondisi sekarang, membandingkan prakiraan tujuh hari, dan mengunduh riwayat per jam. Untuk analisis, kami meninjau bulan terbasah dan terkering, perbedaan suhu antarkota, hubungan suhu dengan kelembapan, serta hubungan hujan dengan PM2.5. Satu koordinat mewakili setiap kota. Hujan di kecamatan tertentu bisa berbeda dari angka yang tampil.
 
 ## 3. Data yang digunakan
 
-Arsip 2025 berisi 8.760 jam per kota atau **26.280 baris**. Kami memakainya untuk membandingkan pola suhu, kelembapan, hujan, dan PM2.5 selama setahun. Untuk cuaca terkini dan prakiraan operasional, aplikasi meminta data ke Open-Meteo sesuai kota yang dipilih.
+Arsip 2025 berisi 8.760 jam per kota atau **26.280 baris**. Kami memakainya untuk membandingkan pola suhu, kelembapan, hujan, dan PM2.5 selama setahun. Prakiraan tiap kota berasal dari Weather Forecast API Open-Meteo [1]. Arsip cuaca 2025 memakai reanalisis ERA5 melalui Historical Weather API [2].
 
 Di Supabase, tabel `cuaca_online` berisi **3.528 baris** dari 1 Oktober 2026 pukul 00.00 sampai 18 November 2026 pukul 23.00 WIB. Ketiga kota punya 49 hari lengkap. Tabel berikut merangkum impor sampai 18 November.
 
@@ -35,7 +35,7 @@ Di Supabase, tabel `cuaca_online` berisi **3.528 baris** dari 1 Oktober 2026 puk
 | Jakarta | 1.176 | 29,01 | 100,04 |
 | Surabaya | 1.176 | 29,93 | 51,65 |
 
-Angka pada tabel mewakili periode 49 hari tersebut. Riwayat cuaca memakai ERA5 untuk tanggal lama dan model operasional untuk tujuh tanggal terkini saat impor. PM2.5 berasal dari CAMS. Kolom sumber ikut disimpan sehingga satu baris bisa ditelusuri kembali. [Data per jam yang dipakai dalam laporan](../data/riwayat_online.csv)
+Angka pada tabel mewakili periode 49 hari tersebut. Riwayat cuaca memakai ERA5 untuk tanggal lama dan model operasional untuk tujuh tanggal terkini saat impor. PM2.5 merupakan estimasi Copernicus Atmosphere Monitoring Service (CAMS) yang kami ambil melalui Air Quality API [3]. Kolom sumber ikut disimpan sehingga satu baris bisa ditelusuri kembali. [Data per jam yang dipakai dalam laporan](../data/riwayat_online.csv)
 
 ![Riwayat per jam dengan sumber Supabase di dashboard](gambar/04-riwayat.png)
 
@@ -46,8 +46,8 @@ Angka pada tabel mewakili periode 49 hari tersebut. Riwayat cuaca memakai ERA5 u
 | Alur | Yang terjadi |
 |---|---|
 | Buka aplikasi | Streamlit meminta kondisi terkini dan prakiraan ke Open-Meteo. Hasil untuk kota yang sama dipakai kembali selama 15 menit. |
-| Perbarui riwayat | Python mengambil data cuaca dan kualitas udara. PostgreSQL di Supabase menyimpan satu baris per kota dan waktu. Impor ulang memperbarui baris yang sama. |
-| Baca dan analisis | Pandas menghitung ringkasan. Plotly menampilkan grafik. Saat riwayat cloud belum bisa dibaca, aplikasi memakai salinan CSV dan menampilkan sumbernya. |
+| Perbarui riwayat | Python mengambil data cuaca dan kualitas udara. Aplikasi terhubung ke PostgreSQL di Supabase lewat session pooler [4]. Tabel menyimpan satu baris per kota dan waktu. Impor ulang memperbarui baris yang sama. |
+| Baca dan analisis | Kami memakai pandas untuk menghitung ringkasan per kota [5] dan Plotly untuk menggambar grafik interaktif [6]. Saat riwayat cloud belum bisa dibaca, aplikasi memakai salinan CSV dan menampilkan sumbernya. |
 | Kirim pengukuran IoT | Penerima HTTP memeriksa token serta isi kiriman, lalu menyimpan pembacaan perangkat di tabel tersendiri, `cuaca_sensor`. |
 
 Dengan alur ini, membuka dashboard memperbarui tampilan prakiraan. Untuk memperpanjang riwayat Supabase, perintah impor dijalankan tersendiri. Berkas dan petunjuk menjalankannya ada di [README](../README.md).
@@ -62,7 +62,7 @@ Kami menyamakan waktu ke WIB dan memeriksa pasangan kota–waktu sebelum menghit
 | Jakarta | 27,41 °C | 2.348,0 mm | Januari · 359,0 mm | Juli · 48,6 mm |
 | Surabaya | 28,20 °C | 2.249,9 mm | Mei · 443,7 mm | Juli · 16,0 mm |
 
-**Juli menjadi bulan terkering di ketiga kota**, tetapi puncak hujan Surabaya terjadi pada Mei. Selisih suhu rata-rata terbesar terdapat antara Surabaya dan Bandung, sekitar **4,10 °C**. Saat memilih rentang tanggal untuk demo, hasil di kartu dan tabel akan mengikuti periode baru tersebut.
+**Juli menjadi bulan terkering di ketiga kota**, tetapi puncak hujan Surabaya terjadi pada Mei. Selisih suhu rata-rata terbesar terdapat antara Surabaya dan Bandung, sekitar **4,10 °C**. Saat memilih rentang tanggal yang lebih pendek, hasil di kartu dan tabel akan mengikuti periode baru tersebut.
 
 ![Filter dan grafik Bandung untuk tahun 2025](gambar/05-analisis.png)
 
@@ -82,16 +82,15 @@ Di Bandung, suhu dan kelembapan rata-rata harian memiliki korelasi Pearson **−
 
 *Gambar 5. Untuk memilih waktu kegiatan, pengguna dapat membaca peluang hujan per jam. Untuk membandingkan hari, tabel juga memuat suhu minimum, maksimum, jumlah presipitasi, dan angin maksimum.*
 
-## 7. Tahap penyelesaian dan video
+## 7. Jadwal dan pembagian tugas
 
-Pembagian awal tim menempatkan Newten pada data dan analisis, Sebastian pada dashboard dan publikasi, serta Noell pada pengujian dan dokumentasi. Untuk video 5–10 menit, kami bisa memakai urutan berikut.
-
-| Menit | Yang ditunjukkan |
+| Pekerjaan minggu ini | Hasil |
 |---|---|
-| 0–2 | Buka Bandung, baca waktu pembaruan, lalu ganti ke Jakarta untuk membandingkan suhu dan peluang hujan. |
-| 2–4 | Pilih dua hari dan bandingkan suhu maksimum serta peluang hujannya. Buka riwayat, tunjukkan sumber Supabase, lalu unduh CSV. |
-| 4–6 | Di Analisis 2025, tunjukkan Januari dan Juli di Bandung, lalu pindah ke Surabaya untuk melihat puncak hujan pada Mei. |
-| 6–7 | Buka grafik hubungan antarvariabel, baca korelasi Bandung, lalu rangkum hasil pengujian. |
+| Pengambilan dan penyimpanan data | Riwayat Oktober–November tiga kota tersimpan di Supabase dengan kunci kota dan waktu. |
+| Penyusunan dashboard | Dua tab memisahkan prakiraan yang terus diperbarui dari analisis arsip 2025. |
+| Pengujian dan dokumentasi | Ringkasan dashboard diperiksa terhadap hasil hitungan Pandas. Lima tangkapan layar mencatat tampilan saat pengujian. |
+
+Pembagian peran mengikuti rencana tim. Newten berfokus pada pengolahan data dan analisis, Sebastian pada dashboard dan publikasi, serta Noell pada pengujian dan dokumentasi.
 
 ## 8. Pengujian dan hasil
 
@@ -104,11 +103,22 @@ Tangkapan layar diambil dari aplikasi yang berjalan di browser dengan koneksi ke
 
 ## 9. Keamanan, etika, dan batas penggunaan
 
-URI database berada di pengaturan rahasia pada mesin yang menjalankan aplikasi. Token perangkat digunakan untuk mengirim pembacaan ke penerima HTTP. Riwayat daring dan kiriman perangkat memiliki tabel masing-masing sehingga data model cuaca tidak tercampur dengan pengukuran lapangan. Saat merekam, cukup tampilkan nama tabel dan isinya; layar pengaturan kredensial tidak diperlukan.
+URI database berada di pengaturan rahasia pada mesin yang menjalankan aplikasi. Token perangkat digunakan untuk mengirim pembacaan ke penerima HTTP. Riwayat daring dan kiriman perangkat memiliki tabel masing-masing sehingga data model cuaca tidak tercampur dengan pengukuran lapangan. Penyimpanan kredensial mengikuti panduan pengelolaan secrets Streamlit [7]. Pada dashboard, kami mencantumkan Open-Meteo dan CAMS sebagai sumber data, beserta lisensi CC BY 4.0 [8].
 
-## 10. Daftar pustaka dan data pendukung
+## 10. Daftar pustaka
 
-1. Open-Meteo. [Weather Forecast API](https://open-meteo.com/en/docs) dan [Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api).
-2. Copernicus Atmosphere Monitoring Service melalui Open-Meteo. [Air Quality API](https://open-meteo.com/en/docs/air-quality-api). Atribusi data mengikuti [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-3. Supabase. [Koneksi PostgreSQL](https://supabase.com/docs/guides/database/connecting-to-postgres).
-4. Berkas proyek. [Arsip per jam 2025](../data/cuaca_udara.csv), [agregat harian](../data/harian.csv), dan [agregat bulanan](../data/bulanan.csv).
+[1] Open-Meteo, “Weather Forecast API.” [Daring]. Tersedia: [https://open-meteo.com/en/docs](https://open-meteo.com/en/docs). Diakses: 19 Nov. 2026.
+
+[2] Open-Meteo, “Historical Weather API.” [Daring]. Tersedia: [https://open-meteo.com/en/docs/historical-weather-api](https://open-meteo.com/en/docs/historical-weather-api). Diakses: 19 Nov. 2026.
+
+[3] Open-Meteo, “Air Quality API.” [Daring]. Tersedia: [https://open-meteo.com/en/docs/air-quality-api](https://open-meteo.com/en/docs/air-quality-api). Diakses: 19 Nov. 2026.
+
+[4] Supabase, “Connect to your database.” [Daring]. Tersedia: [https://supabase.com/docs/guides/database/connecting-to-postgres](https://supabase.com/docs/guides/database/connecting-to-postgres). Diakses: 19 Nov. 2026.
+
+[5] The pandas development team, “pandas documentation.” [Daring]. Tersedia: [https://pandas.pydata.org/docs/](https://pandas.pydata.org/docs/). Diakses: 19 Nov. 2026.
+
+[6] Plotly, “Plotly Python Open Source Graphing Library.” [Daring]. Tersedia: [https://plotly.com/python/](https://plotly.com/python/). Diakses: 19 Nov. 2026.
+
+[7] Streamlit, “Secrets management.” [Daring]. Tersedia: [https://docs.streamlit.io/develop/concepts/connections/secrets-management](https://docs.streamlit.io/develop/concepts/connections/secrets-management). Diakses: 19 Nov. 2026.
+
+[8] Creative Commons, “Attribution 4.0 International (CC BY 4.0).” [Daring]. Tersedia: [https://creativecommons.org/licenses/by/4.0/](https://creativecommons.org/licenses/by/4.0/). Diakses: 19 Nov. 2026.

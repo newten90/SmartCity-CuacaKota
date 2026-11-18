@@ -2,7 +2,7 @@
 
 Cuaca Kota dibuka dengan cuaca Bandung saat ini. Pilih Jakarta atau Surabaya untuk melihat kota lain. Semua jam memakai WIB.
 
-Laporan akhir memuat data tiga kota, tangkapan layar, hasil pengujian, dan alur demo tujuh menit. [Unduh laporan Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan-Akhir-Telematika.docx) · [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf)
+Laporan minggu 2 memuat perkembangan proyek, data tiga kota, tangkapan layar dashboard, hasil pengujian, dan daftar pustaka. [Unduh laporan Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan-Akhir-Telematika.docx) · [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf)
 
 ![Halaman cuaca Bandung](laporan/gambar/01-cuaca.png)
 
