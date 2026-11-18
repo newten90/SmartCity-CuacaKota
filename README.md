@@ -4,6 +4,8 @@ Cuaca Kota menampilkan cuaca dan kualitas udara Bandung, Jakarta, dan Surabaya. 
 
 Tab **Sensor langsung** menampilkan suhu dan kelembapan yang dikirim perangkat, waktu pengukuran dalam WIB, serta perkiraan suhu satu jam setelah pengukuran terakhir. Kalau belum punya perangkat, coba kirim contoh dari PowerShell di bawah. Ada juga tab **Simulasi sensor** untuk memutar ulang 24 jam pertama arsip Bandung, satu jam per klik.
 
+Di tab **Prediksi suhu**, pilih kota lalu masukkan suhu, kelembapan, dan jam pengukuran dalam WIB. Perkiraan suhu satu jam berikutnya langsung berubah saat isian diganti. Tab ini bisa dicoba sebelum sensor mengirim data.
+
 ## Menjalankan dashboard
 
 Dari folder proyek, jalankan di PowerShell dengan Python 3.12 atau 3.13.

@@ -1,5 +1,5 @@
 from contextlib import closing
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 import sqlite3
 import pandas as pd
 import plotly.express as px
@@ -28,7 +28,7 @@ data = dataset()
 st.caption("TELEMATIKA  /  SMART CITY")
 st.title("Cuaca dan udara perkotaan")
 st.write("Bandung, Jakarta, dan Surabaya · Waktu Indonesia Barat")
-analysis, replay, live = st.tabs(["Analisis 2025", "Simulasi sensor", "Sensor langsung"])
+analysis, prediction, replay, live = st.tabs(["Analisis 2025", "Prediksi suhu", "Simulasi sensor", "Sensor langsung"])
 with analysis:
     c1,c2 = st.columns([1,2])
     city = c1.selectbox("Kota", sorted(data.kota.unique()))
@@ -90,6 +90,23 @@ with replay:
 @st.cache_resource
 def models():
     return train(dataset())
+
+
+with prediction:
+    st.subheader("Prediksi suhu satu jam ke depan")
+    st.write("Pilih kota dan isi kondisi cuaca untuk mencoba model. Nilai awal adalah contoh.")
+    place = st.selectbox("Kota prediksi", sorted(data.kota.unique()))
+    a, b, c = st.columns(3)
+    temp = a.number_input("Suhu saat pengukuran (°C)", -80.0, 70.0, 26.0, step=0.1)
+    humidity = b.number_input("Kelembapan saat pengukuran (%)", 0.0, 100.0, 78.0, step=0.1)
+    hour = c.time_input("Jam pengukuran (WIB)", value=time(8))
+    stamp = datetime.combine(date.today(), hour)
+    target = stamp + timedelta(hours=1)
+    following_day = " hari berikutnya" if target.date() != stamp.date() else ""
+    weights, mae, _ = models()[place]
+    value = forecast(weights, temp, humidity, stamp)
+    st.metric(f"Perkiraan suhu pukul {target:%H:%M} WIB{following_day}", f"{value:.1f} °C")
+    st.caption(f"Rata-rata galat model untuk {place} pada arsip Oktober–Desember 2025 sebesar {mae:.2f} °C.")
 
 
 @st.fragment(run_every="5s")
