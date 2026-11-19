@@ -28,7 +28,7 @@ py -3.12 -m venv .venv
 
 Buka `http://127.0.0.1:8000`. Arsip analisis dan salinan riwayat per jam sudah ada di folder `data`. Prakiraan membutuhkan internet.
 
-Variabel lingkungan bisa ditaruh di berkas `.env` (baris `KUNCI=nilai`, tidak ikut git) atau di `.streamlit/secrets.toml` seperti sebelumnya. Nilai yang sudah ada di lingkungan tidak ditimpa.
+Variabel lingkungan bisa ditaruh di berkas `.env` (baris `KUNCI=nilai`, tidak ikut git). Nilai yang sudah ada di lingkungan tidak ditimpa.
 
 ## Endpoint
 
@@ -47,8 +47,8 @@ Kota yang tidak dikenal atau tanggal yang salah mengembalikan `400` dengan pesan
 
 ## Hubungkan ke Supabase
 
-1. Buat proyek di [Supabase Dashboard](https://supabase.com/dashboard). Simpan **database password**. Setelah proyek siap, buka **Connect**, pilih **Session pooler**, dan salin URI PostgreSQL-nya. [Panduan koneksi Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)
-2. Isi `SUPABASE_DB_URL` di `.env` (atau `.streamlit/secrets.toml`; untuk clone baru salin dulu `.streamlit/secrets.example.toml`). Karakter khusus pada password ditulis dalam format URL, misalnya `@` menjadi `%40`.
+1. Buka proyek yang sudah ada di [Supabase Dashboard](https://supabase.com/dashboard). Buka **Connect**, pilih **Session pooler**, dan salin URI PostgreSQL-nya. [Panduan koneksi Supabase](https://supabase.com/docs/guides/database/connecting-to-postgres)
+2. Isi `SUPABASE_DB_URL` di `.env`. Karakter khusus pada password ditulis dalam format URL, misalnya `@` menjadi `%40`.
 
    ```
    SUPABASE_DB_URL=postgresql://postgres.PROJECT_REF:PASSWORD@POOLER_HOST:5432/postgres
@@ -133,7 +133,7 @@ Vercel mengenali `main.py` (instance bernama `app`) sebagai aplikasi FastAPI. `.
    | `SUPABASE_DB_URL` | URI **Session pooler** Supabase |
    | `SENSOR_TOKEN` | token panjang acak, mis. hasil `secrets.token_urlsafe(32)` |
 
-4. **Deploy**. Setelah selesai, isi secret `SUPABASE_DB_URL` di GitHub (bagian sebelumnya) dan jalankan workflow sinkron sekali.
+4. **Deploy**. Periksa `/api/riwayat?kota=Bandung&terbaru=1` dan pastikan `sumber_data` bernilai `Supabase`. Setelah selesai, isi secret `SUPABASE_DB_URL` di GitHub (bagian sebelumnya) dan jalankan workflow sinkron sekali.
 5. Arahkan ESP32 atau pengirim lain ke `https://NAMA-PROYEK.vercel.app/pengukuran` dengan header `Authorization: Bearer <SENSOR_TOKEN>`.
 
 Catatan: Vercel menjalankan aplikasi sebagai fungsi serverless, jadi tanpa `SUPABASE_DB_URL` tidak ada penyimpanan sensor permanen. Halaman Sensor dan `POST /pengukuran` lalu menjawab `503` dengan pesan yang jelas, bukan error 500, dan Riwayat memakai salinan CSV di repositori. Prakiraan di-cache lewat header `Cache-Control` (`s-maxage=900`), tidak hanya memori proses. Jangan simpan token atau URI di repositori; `.env` dan `.streamlit/secrets.toml` sudah ada di `.gitignore`.

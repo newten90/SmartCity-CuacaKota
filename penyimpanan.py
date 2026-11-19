@@ -4,9 +4,11 @@ from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import sqlite3
-import tomllib
+from lingkungan import muat_env
 
 import psycopg
+
+muat_env()
 
 ROOT = Path(__file__).resolve().parent
 WIB = timezone(timedelta(hours=7))
@@ -14,13 +16,7 @@ DB_ERRORS = (sqlite3.Error, psycopg.Error, ValueError, OSError)
 
 
 def cloud_url():
-    if "SUPABASE_DB_URL" in os.environ:
-        return os.environ["SUPABASE_DB_URL"]
-    path = ROOT / ".streamlit/secrets.toml"
-    if path.is_file():
-        with path.open("rb") as file:
-            return tomllib.load(file).get("SUPABASE_DB_URL", "")
-    return ""
+    return os.getenv("SUPABASE_DB_URL", "")
 
 
 @contextmanager
