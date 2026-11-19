@@ -23,6 +23,16 @@ def monthly(data):
     result["bulan_utuh"] = (hours == month_days * 24) & result[RAIN].notna()
     return result
 
+def pearson(frame, x, y):
+    """Korelasi Pearson dan jumlah pasangan valid; r bernilai None bila belum bisa dihitung."""
+    pairs = frame[[x, y]].dropna()
+    r = pairs[x].corr(pairs[y]) if len(pairs) > 1 and pairs.nunique().min() > 1 else None
+    return r, len(pairs)
+
+def correlation(frame, x, y):
+    r, count = pearson(frame, x, y)
+    return f"r = {r:.3f} · {count} pasangan" if r is not None else f"Korelasi belum tersedia · {count} pasangan"
+
 if __name__ == "__main__":
     data = load()
     aggregate(data, ["kota", "tanggal"]).to_csv(ROOT/"data/harian.csv", index=False)

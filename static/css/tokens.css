@@ -1,0 +1,36 @@
+/* Token desain Cuaca Kota (arah E: gaya aplikasi HP untuk desktop).
+   Manrope dimuat lewat <link> di setiap halaman. */
+:root {
+  /* warna */
+  --bg: #EEF3F8;          /* latar halaman */
+  --card: #FFFFFF;        /* permukaan kartu */
+  --line: #D7E0EA;        /* garis kartu & pemisah tabel */
+  --ink: #0F1B2D;         /* teks utama */
+  --mute: #4A586B;        /* teks sekunder (kontras >= 4.5:1 di --card dan --bg) */
+  --accent: #2459D6;      /* tombol aktif, link, peluang hujan */
+  --accent-soft: #E3EBFB; /* latar item aktif (nav, chip, jam "Kini") */
+  --sky-1: #2459D6;       /* gradien hero, awal */
+  --sky-2: #5B8DEF;       /* gradien hero, akhir */
+  --rain-bar: #7FA6F2;    /* batang hujan / peluang hujan */
+  --pm: #0F766E;          /* PM2.5 */
+  --warm: #B45309;        /* bulan terkering, selisih, peringatan ringan */
+  --temp-range: linear-gradient(90deg, #7FA6F2, #F0A35E); /* bar min->maks 7 hari */
+  --ok-bg: #DCFCE7;  --ok-fg: #166534;    /* status 201 / aktif */
+  --note-bg: #FEF3E2; --note-fg: #6B3A06; /* catatan penting / belum ada data */
+  --info-bg: #E3EBFB; --info-fg: #1E3A66; /* informasi netral */
+  --row-hi: #F3F7FE;      /* baris tabel kota terpilih */
+
+  /* tipografi: Manrope saja */
+  --font: Manrope, system-ui, sans-serif;
+  --fs-hero: 120px;  /* suhu hero desktop; HP 84px */
+  --fs-h1: 30px;     /* judul halaman, weight 800 */
+  --fs-h2: 18px;     /* judul kartu, weight 800 */
+  --fs-stat: 26px;   /* angka kartu, weight 800 */
+  --fs-body: 15px;
+  --fs-small: 13px;
+
+  /* bentuk & jarak */
+  --r-hero: 30px; --r-card: 24px; --r-tile: 20px; --r-control: 14px; --r-pill: 10px;
+  --gap: 16px; --pad-card: 22px; --page-pad: 24px; --max-w: 1440px;
+  --touch: 44px; /* tinggi minimum tombol/link */
+}

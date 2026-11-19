@@ -9,8 +9,6 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from streamlit.testing.v1 import AppTest
-from analisis import ROOT
 from sensor import Receiver, ThreadingHTTPServer, WIB
 
 
@@ -28,12 +26,7 @@ class TestSensor(unittest.TestCase):
                     worker.join()
 
     def check_readings(self, port):
-        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=35).run()
-        self.assertFalse(app.exception)
-        self.assertEqual([tab.label for tab in app.tabs], ["Cuaca & prakiraan", "Analisis 2025"])
         now = datetime.now(WIB)
-        tab = app.tabs[0]
-        self.assertEqual(len(tab.number_input), 0)
         body = dict(sensor="uji", kota="Bandung", waktu=now.isoformat(), suhu=26, kelembapan=78)
 
         def send(data, token="test"):
@@ -53,8 +46,6 @@ class TestSensor(unittest.TestCase):
         self.assertEqual(send(dict(body, suhu=27)), 409)
         earlier = now.replace(minute=0, second=0, microsecond=0)
         self.assertEqual(send(dict(body, waktu=earlier.isoformat(), suhu=20)), 201)
-        app.run()
-        self.assertFalse(app.exception)
         from penyimpanan import session
         with session() as store:
             history = store.history("Bandung", "uji")

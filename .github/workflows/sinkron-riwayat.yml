@@ -1,0 +1,38 @@
+name: Sinkron riwayat per jam
+
+# Mengambil riwayat Open-Meteo dan menyimpannya ke Supabase (public.cuaca_online).
+# Workflow ini hanya membaca repositori dan tidak pernah commit atau push.
+on:
+  schedule:
+    - cron: "17 */3 * * *"   # tiap 3 jam (UTC); GitHub dapat menunda beberapa menit
+  workflow_dispatch:
+    inputs:
+      penuh:
+        description: "Impor ulang penuh sejak 1 Oktober 2026 (bukan 10 hari terakhir)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sinkron-riwayat
+  cancel-in-progress: false
+
+jobs:
+  sinkron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - name: Sinkron
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PENUH: ${{ inputs.penuh }}
+        run: |
+          if [ "$PENUH" = "true" ]; then python sinkron_riwayat.py --penuh; else python sinkron_riwayat.py; fi
