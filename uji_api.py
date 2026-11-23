@@ -304,7 +304,9 @@ class TestSensor(Dasar):
         self.assertEqual(self.kirim(dict(self.body, waktu=now.isoformat(), suhu=26.4, kelembapan=78)), 201)
         self.assertEqual(self.kirim(dict(self.body, waktu=(now - timedelta(minutes=5)).isoformat(), suhu=26.0)), 201)
         self.assertEqual(self.kirim(dict(self.body, sensor="lama", waktu=(now - timedelta(hours=2)).isoformat())), 201)
-        body = client.get("/api/sensor", params={"kota": "Bandung"}).json()
+        empty = pd.DataFrame(columns=["waktu", "temperature_2m"])
+        with patch("layanan._riwayat_kota", return_value=(empty, "uji")):
+            body = client.get("/api/sensor", params={"kota": "Bandung"}).json()
         self.assertEqual([d["sensor"] for d in body["perangkat"]], ["uji", "lama"])
         self.assertTrue(body["perangkat"][0]["aktif"])
         self.assertFalse(body["perangkat"][1]["aktif"])

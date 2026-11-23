@@ -180,3 +180,11 @@ td.tebal { font-weight: 800; }
   .hero .tengah svg { width: 56px; height: 56px; }
   .tombol-kota { padding: 0 14px; }
 }
+
+.input-pengukuran {margin-bottom:16px}
+.input-pengukuran summary {font-weight:800;cursor:pointer;color:var(--accent)}
+.input-pengukuran form {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px;margin-top:18px;align-items:end}
+.input-pengukuran label {display:grid;gap:6px;font-size:14px;font-weight:700}
+.input-pengukuran input {width:100%;box-sizing:border-box;min-height:44px;border:1px solid var(--line);border-radius:var(--r-control);padding:8px 12px;font:inherit;color:var(--ink);background:var(--card)}
+.input-pengukuran button {background:var(--accent);color:white}
+.input-pengukuran [role=status] {grid-column:1/-1}

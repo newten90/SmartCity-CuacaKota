@@ -86,7 +86,7 @@
     window.Shell.sub("Data dari penerima HTTP · tersimpan di " + (d.sumber === "Supabase" ? "Supabase" : "SQLite lokal"));
     if (!d.perangkat.length) {
       ctx.isi.innerHTML = '<section class="kartu"><div class="kosong">' + U.ikon("sensor", 38, 1.8, "var(--pm)") + '<div class="judul">Belum ada pengukuran</div>' +
-        '<div class="isi-kosong">Jalankan sensor.py lalu kirim POST ke /pengukuran. Di situs yang sudah di-deploy, kirim langsung ke alamat /pengukuran situs ini.</div></div></section>' +
+        '<div class="isi-kosong">Buka Tambah pengukuran cuaca untuk mencatat suhu dan kelembapan pertama di kota ini.</div></div></section>' +
         '<div class="baris">' + arti() + "</div>";
       return;
     }
@@ -112,5 +112,48 @@
     }
   }
 
-  window.Shell.mulai({ kunci: "sensor", judul: "Sensor IoT", sub: "Data dari penerima HTTP", kerangka: kerangka, muat: muat, segarkan: 60000 });
+  // Tempatkan formulir di luar area yang digambar ulang setiap menit.
+  function waktuWib() {
+    return new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 19);
+  }
+  function pilihKotaForm(kota) {
+    form.reset();
+    form.elements.kota.value = kota;
+    form.elements.waktu.value = waktuWib();
+    statusForm.textContent = "";
+  }
+
+  window.Shell.mulai({ kunci: "sensor", judul: "Sensor IoT", sub: "Data dari penerima HTTP", kerangka: kerangka, muat: muat, segarkan: 60000, gantiKota: pilihKotaForm });
+  const template = document.getElementById("form-input");
+  document.getElementById("halaman").before(template.content.cloneNode(true));
+  const form = document.querySelector(".input-pengukuran form");
+  const statusForm = form.querySelector('[role="status"]');
+  pilihKotaForm(window.Shell.kota());
+  form.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const fields = form.elements;
+    const kota = fields.kota.value;
+    const payload = { kota, sensor: fields.sensor.value.trim(), waktu: fields.waktu.value + "+07:00",
+      suhu: fields.suhu.valueAsNumber, kelembapan: fields.kelembapan.valueAsNumber };
+    const button = form.querySelector("button");
+    button.disabled = true;
+    statusForm.textContent = "Menyimpan…";
+    try {
+      const response = await fetch("/pengukuran", { method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + fields.token.value },
+        body: JSON.stringify(payload) });
+      const result = await response.json();
+      if (kota !== window.Shell.kota()) return;
+      statusForm.textContent = result.pesan;
+      if (response.ok) {
+        fields.token.value = "";
+        dipilih = payload.sensor;
+        window.Shell.ulang();
+      }
+    } catch {
+      if (kota === window.Shell.kota()) statusForm.textContent = "Respons belum diterima. Coba kirim ulang dengan waktu yang sama.";
+    } finally {
+      button.disabled = false;
+    }
+  });
 })();

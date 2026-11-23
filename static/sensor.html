@@ -17,5 +17,20 @@
 </head>
 <body>
 <div id="app"><noscript><p style="padding:24px">Cuaca Kota membutuhkan JavaScript untuk menampilkan data.</p></noscript></div>
+<template id="form-input">
+<details class="kartu input-pengukuran">
+<summary>Tambah pengukuran cuaca</summary>
+<form>
+<label>Kota<input name="kota" readonly></label>
+<label>Nama sensor atau alat ukur<input name="sensor" required maxlength="64" placeholder="Misalnya Termometer halaman"></label>
+<label>Waktu pengukuran (WIB)<input type="datetime-local" name="waktu" step="1" required></label>
+<label>Suhu (°C)<input type="number" name="suhu" step="any" min="-80" max="70" required></label>
+<label>Kelembapan (%)<input type="number" name="kelembapan" step="any" min="0" max="100" required></label>
+<label>Token pengirim<input type="password" name="token" required autocomplete="off"></label>
+<button type="submit" class="tombol-kota" aria-label="Simpan pengukuran">Simpan pengukuran</button>
+<span role="status" aria-live="polite"></span>
+</form>
+</details>
+</template>
 </body>
 </html>

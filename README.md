@@ -62,6 +62,12 @@ Kota yang tidak dikenal atau tanggal yang salah mengembalikan `400` dengan pesan
 
 Dengan URI kosong, penerima sensor lokal memakai SQLite di `data/sensor.sqlite3` dan riwayat memakai `data/riwayat_online.csv`. Jika Supabase tidak terjangkau, `/api/riwayat` otomatis memakai salinan CSV dan halaman Riwayat menampilkan labelnya. Koneksi Postgres dibuka per permintaan dengan batas waktu 5 detik.
 
+## Input cuaca dari web
+
+Buka **Sensor → Tambah pengukuran cuaca**. Pilih kota di bagian atas halaman, isi nama alat, waktu pengukuran dalam WIB, suhu (−80 sampai 70 °C), dan kelembapan (0–100%). Masukkan token pengirim lalu klik **Simpan pengukuran**. Setelah berhasil, daftar pembacaan diperbarui.
+
+Formulir menggunakan lima kolom tabel Supabase `public.cuaca_sensor` melalui endpoint `POST /pengukuran`. Token hanya untuk autentikasi dan diisi dari nilai `SENSOR_TOKEN` yang dipasang pengelola di Vercel. Untuk mengaktifkannya pertama kali, atur variabel itu pada environment Production lalu redeploy. Pengukuran manual tersimpan terpisah dari riwayat model Open-Meteo di `cuaca_online`.
+
 ## Kirim data sensor
 
 Sensor mengirim `POST /pengukuran` dengan header `Authorization: Bearer <SENSOR_TOKEN>` dan JSON `{"sensor","kota","waktu","suhu","kelembapan"}`. `waktu` memakai ISO 8601 beserta zona, misalnya `2026-11-18T08:30:00+07:00`. Batas badan 4096 byte.
