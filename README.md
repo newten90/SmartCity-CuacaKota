@@ -10,8 +10,8 @@ Laporan minggu 2 memuat perkembangan proyek, data tiga kota, hasil pengujian, da
 |---|---|
 | `/` | Cuaca: kondisi saat ini, suhu terasa, kelembapan, angin, PM2.5 terakhir, terbit/terbenam, tips hujan, per jam 24 jam, tujuh hari, ringkasan sensor. Prakiraan dari Open-Meteo, diperbarui paling sering tiap 15 menit. |
 | `/analisis` | Analisis 2025: rentang tanggal, empat kartu, temuan, grafik suhu/hujan/PM2.5, tabel tiga kota, korelasi, unduh CSV. |
-| `/riwayat` | Riwayat per jam sejak 1 Oktober 2026, sumber data, waktu sinkron terakhir (ditandai bila lebih dari 6 jam), grafik, tabel, unduh CSV. |
-| `/sensor` | Pembacaan sensor IoT terakhir, perbandingan dengan model jam yang sama, tren, perangkat, tabel kiriman. |
+| `/riwayat` | Riwayat per jam sejak 1 Oktober 2026, sumber data, waktu sinkron terakhir (ditandai bila lebih dari 6 jam), grafik, pola 24 jam WIB dan perbandingan 2025–2026, tabel, unduh CSV. |
+| `/sensor` | Formulir input pengukuran ke Supabase, pembacaan sensor IoT terakhir, perbandingan dengan model jam yang sama, tren, perangkat, tabel kiriman. |
 | `/kota` | Pilih kota. Kota terpilih disimpan di `?kota=` dan `localStorage`, sama di semua halaman. |
 
 Rail navigasi di kiri untuk desktop, tab bar di bawah untuk layar lebih sempit dari 900 px. Desain acuan ada di `desain/`.
@@ -61,6 +61,12 @@ Kota yang tidak dikenal atau tanggal yang salah mengembalikan `400` dengan pesan
    ```
 
 Dengan URI kosong, penerima sensor lokal memakai SQLite di `data/sensor.sqlite3` dan riwayat memakai `data/riwayat_online.csv`. Jika Supabase tidak terjangkau, `/api/riwayat` otomatis memakai salinan CSV dan halaman Riwayat menampilkan labelnya. Koneksi Postgres dibuka per permintaan dengan batas waktu 5 detik.
+
+## Pola per jam dan perbandingan 2025–2026
+
+Buka **Riwayat → Pola per jam · 2025 dan 2026**. Pilih suhu, kelembapan, atau estimasi PM2.5. Dua garis memperlihatkan rata-rata pada pukul 00.00 sampai 23.00 WIB untuk kota yang dipilih. Di bawah grafik, buka tabel untuk melihat angka kedua tahun, selisih 2026 dikurangi 2025, dan jumlah pasangan pada setiap jam.
+
+Periode mengikuti riwayat 2026 yang tersedia. Misalnya, 23 November pukul 21.00 hanya dibandingkan dengan 23 November pukul 21.00 tahun sebelumnya. Nilai kosong dikeluarkan berpasangan untuk masing-masing variabel. Rerata periode dihitung dari seluruh pasangan valid. Data angin hanya tersedia di riwayat 2026. Hujan pada arsip 2025 dan presipitasi pada riwayat 2026 juga berbeda cakupan, jadi keduanya tidak ditampilkan dalam perbandingan. Respons lengkap `GET /api/riwayat?kota=Bandung` memuat hasil pada `pola`.
 
 ## Input cuaca dari web
 

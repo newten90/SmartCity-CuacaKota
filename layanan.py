@@ -275,6 +275,28 @@ def riwayat_csv(kota):
     return local.to_csv(index=False), f"{kota}_riwayat_online.csv"
 
 
+def pola_jam(local, arsip):
+    """Bandingkan jam WIB dengan tanggal kalender yang sama satu tahun sebelumnya."""
+    kolom = [TEMP, RH, PM]
+    kini = local.loc[local.waktu.dt.year.eq(2026), ["waktu", *kolom]].set_index("waktu")
+    if kini.empty:
+        return None
+    dulu = arsip.set_index(pd.to_datetime(arsip.waktu))[kolom]
+    sejajar = dulu.reindex(kini.index - pd.DateOffset(years=1))
+    sejajar.index = kini.index
+    hasil = {}
+    for nama in kolom:
+        pasangan = pd.concat([sejajar[nama], kini[nama]], axis=1, keys=["arsip", "riwayat"]).dropna()
+        grup = pasangan.groupby(pasangan.index.hour)
+        jam = grup.mean().reindex(range(24))
+        jam["pasangan"] = grup.size().reindex(range(24), fill_value=0)
+        jam["selisih"] = jam.riwayat - jam.arsip
+        hasil[nama] = {"jam": jam.rename_axis("jam").reset_index(), "pasangan": len(pasangan),
+                       "arsip": pasangan.arsip.mean(), "riwayat": pasangan.riwayat.mean(),
+                       "selisih": (pasangan.riwayat - pasangan.arsip).mean()}
+    return {"awal": kini.index.min(), "akhir": kini.index.max(), "variabel": hasil}
+
+
 def riwayat(kota, now=None, terbaru=None):
     now = now or datetime.now(WIB)
     local, source = _riwayat_kota(kota)
@@ -297,7 +319,8 @@ def riwayat(kota, now=None, terbaru=None):
         "akhir": None if last is None else f"{last:%Y-%m-%dT%H:%M}",
         "selisih_jam": None if age is None else round(age, 1),
         "usang": age is None or age > USANG_JAM,
-        "baris": rows})
+        "baris": rows,
+        "pola": pola_jam(local, dataset().loc[dataset().kota.eq(kota)]) if terbaru is None else None})
 
 
 # ---------- prakiraan ----------

@@ -23,6 +23,26 @@ from penyimpanan import WIB
 client = TestClient(main.app)
 
 
+class UjiPolaJam(unittest.TestCase):
+    def test_pasangan_per_variabel_dan_hari_terakhir_parsial(self):
+        def data(waktu, suhu, pm):
+            return pd.DataFrame({"waktu": pd.to_datetime(waktu), layanan.TEMP: suhu,
+                                 layanan.RH: [80] * len(waktu), layanan.PM: pm})
+        arsip = data(["2025-10-01 05:00", "2025-10-01 06:00", "2025-10-02 05:00"],
+                     [20, 90, 24], [10, 100, None])
+        kini = data(["2026-10-01 05:00", "2026-10-02 05:00", "2026-10-03 05:00"],
+                    [22, 28, 99], [12, 15, 88])
+        hasil = layanan.pola_jam(kini, arsip)["variabel"]
+        self.assertEqual(hasil[layanan.TEMP]["selisih"], 3)
+        self.assertEqual(hasil[layanan.PM]["pasangan"], 1)
+        jam = hasil[layanan.TEMP]["jam"]
+        self.assertEqual(list(jam.jam), list(range(24)))
+        self.assertEqual(jam.loc[5, "pasangan"], 2)
+        self.assertTrue(pd.isna(jam.loc[6, "riwayat"]))
+        self.assertIsNone(layanan.pola_jam(kini.iloc[:0], arsip))
+
+
+
 def laporan_palsu(today, jam_sekarang=9):
     """Respons Open-Meteo tiruan untuk hari today (bentuk sama dengan prakiraan.outlook())."""
     days = [today + timedelta(days=n) for n in range(0, 8)]
