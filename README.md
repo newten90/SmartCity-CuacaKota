@@ -2,6 +2,8 @@
 
 Dashboard cuaca Bandung, Jakarta, dan Surabaya. Semua jam memakai WIB. Aplikasinya web biasa: backend FastAPI (`main.py`) dengan halaman HTML, CSS, dan JavaScript biasa di `static/` (tanpa build step), grafik Plotly.js. Siap di-host di Vercel dengan data di Supabase.
 
+**Laporan minggu 3** membahas pola cuaca menurut jam WIB, perbandingan periode yang sama di tiga kota, serta pengujian formulir pengukuran di Vercel dan Supabase. [Unduh Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan3Telematika-240064-240076-240090.docx) · [Baca PDF](laporan/Laporan3Telematika-240064-240076-240090.pdf).
+
 Laporan minggu 2 memuat perkembangan proyek, data tiga kota, hasil pengujian, dan daftar pustaka. [Unduh laporan Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan-Akhir-Telematika.docx) · [Baca laporan](laporan/Laporan-Akhir-Telematika.md) · [Unduh PDF](laporan/Laporan-Akhir-Telematika.pdf). Tangkapan layar di laporan masih memperlihatkan tampilan Streamlit sebelum migrasi.
 
 ## Halaman
