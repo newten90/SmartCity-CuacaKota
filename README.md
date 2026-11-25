@@ -1,6 +1,6 @@
 # Cuaca Kota
 
-Dashboard cuaca Bandung, Jakarta, dan Surabaya. Semua jam memakai WIB. Aplikasinya web biasa: backend FastAPI (`main.py`) dengan halaman HTML, CSS, dan JavaScript biasa di `static/` (tanpa build step), grafik Plotly.js. Siap di-host di Vercel dengan data di Supabase.
+Dashboard cuaca Bandung, Jakarta, dan Surabaya. Semua jam memakai WIB. Aplikasinya web biasa: backend FastAPI (`main.py`) dengan halaman HTML, CSS, dan JavaScript biasa di `static/` (tanpa build step), grafik Plotly.js. Aplikasi berjalan di Vercel dan membaca riwayat dari Supabase. [Buka dashboard](https://smart-city-cuaca-kota.vercel.app/).
 
 **Laporan minggu 3** membahas pola cuaca menurut jam WIB, perbandingan periode yang sama di tiga kota, serta sinkronisasi otomatis dari Open-Meteo ke Supabase melalui GitHub Actions. [Unduh Word](https://github.com/newten90/SmartCity-CuacaKota/raw/refs/heads/main/laporan/Laporan3Telematika-240064-240076-240090.docx) · [Baca PDF](laporan/Laporan3Telematika-240064-240076-240090.pdf).
 
@@ -20,6 +20,16 @@ Open-Meteo menyediakan nilai per jam untuk setiap kota. GitHub Actions mengambil
 | `/kota` | Pilih kota. Kota terpilih disimpan di `?kota=` dan `localStorage`, sama di semua halaman. |
 
 Rail navigasi di kiri untuk desktop, tab bar di bawah untuk layar lebih sempit dari 900 px. Desain acuan ada di `desain/`.
+
+## Letak perubahan
+
+| Yang ingin diubah | Berkas |
+|---|---|
+| Jadwal pembaruan | `.github/workflows/sinkron-riwayat.yml` |
+| Variabel cuaca, periode pengambilan ulang, dan penulisan ke Supabase | `sinkron_riwayat.py` |
+| Struktur tabel riwayat dan koneksi database | `supabase.sql` dan `penyimpanan.py` |
+| Pengolahan data yang dikirim ke web | `layanan.py`, dengan rute di `main.py` |
+| Tampilan riwayat, grafik, dan tabel perbandingan | `static/js/riwayat.js` |
 
 ## Menjalankan di komputer sendiri
 
