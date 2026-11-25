@@ -116,8 +116,6 @@ td.tebal { font-weight: 800; }
 .hari .an { width: 72px; text-align: right; color: var(--mute); font-size: var(--fs-small); }
 .hari .mx { font-weight: 800; width: 34px; }
 .hari .mm { width: 60px; text-align: right; color: var(--mute); font-size: var(--fs-small); }
-.sensor-ringkas { display: flex; gap: 28px; margin-top: 12px; flex-wrap: wrap; }
-.sensor-ringkas .besar { font-size: 36px; font-weight: 800; line-height: 1.15; }
 
 /* ---------- halaman Analisis ---------- */
 .kendali { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -127,8 +125,6 @@ td.tebal { font-weight: 800; }
 .kendali .renggang { flex: 1 1 0; }
 
 /* ---------- halaman Sensor ---------- */
-.sensor-hero { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
-.sensor-hero .suhu { font-size: 84px; font-weight: 800; letter-spacing: -3px; line-height: 1; margin-top: 10px; }
 .banding { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
 .banding > div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .banding span { color: var(--mute); }
@@ -170,10 +166,8 @@ td.tebal { font-weight: 800; }
   .stat .nilai { font-size: 18px; }
   .jam { flex-basis: 58px; padding: 10px 0; }
   .jam .t { font-size: 16px; }
-  .sensor-hero .suhu { font-size: 52px; letter-spacing: -2px; }
   .kota-kartu { padding: 20px; }
   .kota-kartu .suhu { font-size: 56px; }
-  .sensor-ringkas .besar { font-size: 30px; }
   .bar { align-items: flex-start; }
 }
 @media (max-width: 480px) {
@@ -181,10 +175,3 @@ td.tebal { font-weight: 800; }
   .tombol-kota { padding: 0 14px; }
 }
 
-.input-pengukuran {margin-bottom:16px}
-.input-pengukuran summary {font-weight:800;cursor:pointer;color:var(--accent)}
-.input-pengukuran form {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:16px;margin-top:18px;align-items:end}
-.input-pengukuran label {display:grid;gap:6px;font-size:14px;font-weight:700}
-.input-pengukuran input {width:100%;box-sizing:border-box;min-height:44px;border:1px solid var(--line);border-radius:var(--r-control);padding:8px 12px;font:inherit;color:var(--ink);background:var(--card)}
-.input-pengukuran button {background:var(--accent);color:white}
-.input-pengukuran [role=status] {grid-column:1/-1}

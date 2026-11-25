@@ -1,4 +1,4 @@
-/* Halaman Cuaca: kondisi saat ini, per jam, 7 hari, dan ringkasan sensor. Data dari /api/cuaca dan /api/sensor. */
+/* Kondisi saat ini, prakiraan per jam, dan prakiraan tujuh hari. */
 (function () {
   "use strict";
   const U = window.U, e = U.esc;
@@ -68,24 +68,6 @@
     return '<section class="kartu" style="flex:3 1 560px"><div class="kepala"><h2>7 hari ke depan</h2><span class="kecil">peluang hujan · min–maks · presipitasi · angin maksimum</span></div><div class="gulir">' + baris + "</div></section>";
   }
 
-  function ringkasSensor(kota, hasil) {
-    let isi;
-    if (hasil.status === "rejected") {
-      isi = '<p class="kecil" style="margin-top:6px">' + e(hasil.reason.message) + "</p>";
-    } else if (!hasil.value.terbaru) {
-      isi = '<div class="kosong" style="padding:14px 0">' + U.ikon("sensor", 34, 1.8, "var(--pm)") + '<div class="judul">Belum ada pengukuran</div>' +
-        '<div class="isi-kosong">Jalankan sensor.py lalu kirim POST ke /pengukuran.</div></div>';
-    } else {
-      const t = hasil.value.terbaru;
-      isi = '<div class="status' + (t.aktif ? "" : " mati") + '"><span class="titik"></span>' + (t.aktif ? "Aktif · kiriman " + U.waktu.jam(t.waktu) : "Tidak aktif · kiriman terakhir " + U.waktu.tglJam(t.waktu)) + "</div>" +
-        '<div class="sensor-ringkas"><div><div class="kecil">Suhu</div><div class="besar">' + U.angka(t.suhu, 1, "°") + '</div></div><div><div class="kecil">Kelembapan</div><div class="besar">' + U.bulat(t.kelembapan, "%") + "</div></div></div>" +
-        '<p class="kecil" style="margin-top:10px">' + (t.model_suhu == null ? "Belum ada data model Open-Meteo untuk jam ini." : "Model Open-Meteo jam yang sama " + U.angka(t.model_suhu, 1, "°") + ".") +
-        " Sensor mengukur satu titik, model mewakili satu titik grid kota.</p>";
-    }
-    const nama = hasil.status === "fulfilled" && hasil.value.terbaru ? "Sensor " + e(hasil.value.terbaru.sensor) : "Sensor IoT";
-    return '<section class="kartu" style="flex:2 1 320px"><div class="kepala"><h2>' + nama + '</h2><a class="kecil" style="font-weight:700" href="/sensor?kota=' + encodeURIComponent(kota) + '">Lihat semua</a></div>' + isi + "</section>";
-  }
-
   function tabelRiwayat(r) {
     const baris = r.baris.slice().reverse().map(function (b) {
       return "<tr><td>" + U.waktu.tglJam(b.waktu) + "</td><td>" + U.angka(b.temperature_2m, 1) + "</td><td>" + U.bulat(b.relative_humidity_2m) + "</td><td>" +
@@ -109,16 +91,16 @@
   }
 
   async function muat(kota, ctx) {
-    const hasil = await Promise.allSettled([U.api("/api/cuaca", { kota: kota }), U.api("/api/sensor", { kota: kota })]);
-    if (!ctx.berlaku()) return;
-    const cuaca = hasil[0];
-    if (cuaca.status === "rejected") {
-      if (ctx.senyap) return; // pembaruan otomatis gagal: biarkan tampilan terakhir
-      return gagalPrakiraan(kota, ctx, cuaca.reason);
+    let c;
+    try {
+      c = await U.api("/api/cuaca", { kota });
+    } catch (err) {
+      if (!ctx.berlaku() || ctx.senyap) return;
+      return gagalPrakiraan(kota, ctx, err);
     }
-    const c = cuaca.value;
+    if (!ctx.berlaku()) return;
     ctx.isi.innerHTML = '<div class="hero-baris">' + hero(kota, c) + statistik(c) + "</div>" + tips(c) + perJam(c) +
-      '<div class="baris" style="align-items:flex-start">' + tujuhHari(c) + ringkasSensor(kota, hasil[1]) + "</div>";
+      tujuhHari(c);
   }
 
   window.Shell.mulai({ kunci: "cuaca", judul: "Cuaca hari ini", sub: "Prakiraan Open-Meteo · diperbarui paling sering tiap 15 menit", kerangka: kerangka, muat: muat, segarkan: 60000 });

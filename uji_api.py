@@ -1,4 +1,4 @@
-"""Uji endpoint, penerima sensor POST /pengukuran, dan logika sinkron riwayat.
+"""Uji endpoint, prakiraan dan logika sinkron riwayat.
 Semua berjalan tanpa internet dan tanpa database asli:  python -m unittest uji_api"""
 import os
 os.environ["SUPABASE_DB_URL"] = ""
@@ -73,8 +73,7 @@ class Dasar(unittest.TestCase):
 
 class TestValidasi(Dasar):
     def test_kota_tidak_valid_400(self):
-        for path in ["/api/cuaca", "/api/riwayat", "/api/riwayat.csv", "/api/analisis", "/api/analisis.csv",
-                     "/api/sensor"]:
+        for path in ["/api/cuaca", "/api/riwayat", "/api/riwayat.csv", "/api/analisis", "/api/analisis.csv"]:
             with self.subTest(path=path):
                 response = client.get(path, params={"kota": "Medan"})
                 self.assertEqual(response.status_code, 400)
@@ -169,12 +168,9 @@ class TestRiwayat(Dasar):
             def fetchall(self):
                 return rows
 
-        class Store:
-            cloud, db = True, Db()
-
         @contextmanager
         def palsu():
-            yield Store()
+            yield Db()
 
         with patch.dict(os.environ, SUPABASE_DB_URL="postgresql://x"), patch("layanan.session", palsu):
             terbaru = layanan.riwayat("Bandung", now=datetime(2026, 11, 19, 4, 30, tzinfo=WIB))
@@ -244,113 +240,9 @@ class TestCuaca(Dasar):
         self.assertIsNone(body["sekarang"]["terbit"])
 
 
-class TestSensor(Dasar):
-    def setUp(self):
-        super().setUp()
-        folder = TemporaryDirectory()
-        self.addCleanup(folder.cleanup)
-        patcher = patch.dict(os.environ, SUPABASE_DB_URL="", SENSOR_DB=str(Path(folder.name) / "uji.sqlite3"),
-                             SENSOR_TOKEN="test")
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        self.body = dict(sensor="uji", kota="Bandung", waktu=datetime.now(WIB).isoformat(), suhu=26, kelembapan=78)
-
-    def kirim(self, data, token="test", raw=None):
-        headers = {} if token is None else {"Authorization": f"Bearer {token}"}
-        content = raw if raw is not None else __import__("json").dumps(data)
-        return client.post("/pengukuran", content=content, headers=headers).status_code
-
-    def test_kode_balasan_sama_dengan_sensor_py(self):
-        now = datetime.now(WIB)
-        self.assertEqual(self.kirim(self.body, "salah"), 401)
-        self.assertEqual(self.kirim(self.body, None), 401)
-        self.assertEqual(self.kirim(dict(self.body, kelembapan=101)), 400)
-        self.assertEqual(self.kirim(self.body), 201)
-        self.assertEqual(self.kirim(self.body), 200)
-        self.assertEqual(self.kirim(dict(self.body, suhu=27)), 409)
-        earlier = now.replace(minute=0, second=0, microsecond=0)
-        self.assertEqual(self.kirim(dict(self.body, waktu=earlier.isoformat(), suhu=20)), 201)
-        from penyimpanan import session
-        with session() as store:
-            history = store.history("Bandung", "uji")
-        self.assertEqual(len(history), 2)
-        self.assertEqual(history[0][1], 26)
-
-    def test_validasi_badan(self):
-        self.assertEqual(self.kirim(None, raw="bukan json"), 400)
-        self.assertEqual(self.kirim(None, raw=""), 400)
-        self.assertEqual(self.kirim(None, raw="[1, 2]"), 400)
-        self.assertEqual(self.kirim(None, raw="[" * 100000), 400)
-        self.assertEqual(self.kirim(dict(self.body, kota="Medan")), 400)
-        self.assertEqual(self.kirim(dict(self.body, sensor="  ")), 400)
-        self.assertEqual(self.kirim(dict(self.body, waktu="2026-01-01T00:00:00")), 400)
-        self.assertEqual(self.kirim(dict(self.body, waktu=(datetime.now(WIB) + timedelta(hours=1)).isoformat())), 400)
-        self.assertEqual(self.kirim(dict(self.body, sensor="x" * 5000)), 400)
-        self.assertEqual(self.kirim(dict(self.body, suhu=True)), 400)
-
-    def test_tanpa_token_di_server_503(self):
-        with patch.dict(os.environ, SENSOR_TOKEN=""):
-            self.assertEqual(self.kirim(self.body, ""), 503)
-            self.assertEqual(self.kirim(self.body, "test"), 503)
-
-    def test_database_gagal_503(self):
-        @contextmanager
-        def gagal():
-            raise psycopg.OperationalError("mati")
-            yield
-
-        with patch("layanan.session", gagal):
-            self.assertEqual(self.kirim(self.body), 503)
-            response = client.get("/api/sensor", params={"kota": "Bandung"})
-            self.assertEqual(response.status_code, 503)
-
-    def test_vercel_tanpa_supabase_pesan_jelas(self):
-        with patch.dict(os.environ, VERCEL="1", SUPABASE_DB_URL=""):
-            response = client.post("/pengukuran", content="{}", headers={"Authorization": "Bearer test"})
-            self.assertEqual(response.status_code, 400)  # badan dicek lebih dulu
-            self.assertEqual(self.kirim(self.body), 503)
-            response = client.get("/api/sensor", params={"kota": "Bandung"})
-            self.assertEqual(response.status_code, 503)
-            self.assertIn("SUPABASE_DB_URL", response.json()["pesan"])
-            self.assertIn("Vercel", response.json()["pesan"])
-
-    def test_api_sensor(self):
-        response = client.get("/api/sensor", params={"kota": "Bandung"})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["perangkat"], [])
-        self.assertIsNone(response.json()["terbaru"])
-
-        now = datetime.now(WIB)
-        self.assertEqual(self.kirim(dict(self.body, waktu=now.isoformat(), suhu=26.4, kelembapan=78)), 201)
-        self.assertEqual(self.kirim(dict(self.body, waktu=(now - timedelta(minutes=5)).isoformat(), suhu=26.0)), 201)
-        self.assertEqual(self.kirim(dict(self.body, sensor="lama", waktu=(now - timedelta(hours=2)).isoformat())), 201)
-        empty = pd.DataFrame(columns=["waktu", "temperature_2m"])
-        with patch("layanan._riwayat_kota", return_value=(empty, "uji")):
-            body = client.get("/api/sensor", params={"kota": "Bandung"}).json()
-        self.assertEqual([d["sensor"] for d in body["perangkat"]], ["uji", "lama"])
-        self.assertTrue(body["perangkat"][0]["aktif"])
-        self.assertFalse(body["perangkat"][1]["aktif"])
-        self.assertEqual(body["perangkat"][0]["kiriman_1_jam"], 2)
-        self.assertEqual(body["sumber"], "SQLite lokal")
-        self.assertEqual(body["terbaru"]["sensor"], "uji")
-        self.assertEqual(body["terbaru"]["suhu"], 26.4)
-        self.assertEqual([row["suhu"] for row in body["pengukuran"]["uji"]], [26.4, 26.0])
-        self.assertIsNone(body["terbaru"]["model_suhu"], "belum ada riwayat model untuk jam ini")
-        self.assertEqual(client.get("/api/sensor", params={"kota": "Jakarta"}).json()["perangkat"], [])
-
-    def test_suhu_model_jam_yang_sama(self):
-        stamp = datetime(2026, 11, 18, 22, 40, tzinfo=WIB)
-        self.assertEqual(self.kirim(dict(self.body, waktu=stamp.isoformat(), suhu=30)), 201)
-        local = pd.DataFrame({"waktu": [pd.Timestamp("2026-11-18 22:00")], "temperature_2m": [25.0]})
-        with patch("layanan._riwayat_kota", return_value=(local, "x")):
-            body = layanan.sensor("Bandung", now=stamp)
-        self.assertEqual(body["terbaru"]["model_suhu"], 25.0)
-        self.assertEqual(body["terbaru"]["selisih"], 5.0)
-
-
 class TestHalaman(Dasar):
     def test_halaman_dan_berkas_statis(self):
-        for path in ["/", "/analisis", "/riwayat", "/sensor", "/kota"]:
+        for path in ["/", "/analisis", "/riwayat", "/kota"]:
             with self.subTest(path=path):
                 response = client.get(path)
                 self.assertEqual(response.status_code, 200)
@@ -455,12 +347,9 @@ class TestSinkron(unittest.TestCase):
             def cursor(self):
                 return Cursor()
 
-        class Store:
-            cloud, db = True, Db()
-
         @contextmanager
         def palsu():
-            yield Store()
+            yield Db()
 
         original = sinkron.city_history
 
@@ -496,12 +385,12 @@ class TestLingkungan(unittest.TestCase):
         import lingkungan
         with TemporaryDirectory() as folder:
             path = Path(folder) / ".env"
-            path.write_text('# komentar\nSUPABASE_DB_URL="postgresql://a"\nSENSOR_TOKEN=abc\nBARU_UJI=ya\nrusak\n', encoding="utf-8")
-            with patch.dict(os.environ, {"SENSOR_TOKEN": "sudah-ada", "SUPABASE_DB_URL": ""}):
+            path.write_text('# komentar\nSUPABASE_DB_URL="postgresql://a"\nCONTOH_ENV=abc\nBARU_UJI=ya\nrusak\n', encoding="utf-8")
+            with patch.dict(os.environ, {"CONTOH_ENV": "sudah-ada", "SUPABASE_DB_URL": ""}):
                 os.environ.pop("BARU_UJI", None)
                 lingkungan.muat_env(path)
                 self.assertEqual(os.environ["SUPABASE_DB_URL"], "", "nilai yang sudah ada tidak ditimpa")
-                self.assertEqual(os.environ["SENSOR_TOKEN"], "sudah-ada")
+                self.assertEqual(os.environ["CONTOH_ENV"], "sudah-ada")
                 self.assertEqual(os.environ["BARU_UJI"], "ya")
 
 

@@ -104,8 +104,8 @@ def sync(penuh=False, csv=False, now=None):
     initialize_cloud()
     last_seen = {}
     if not penuh:
-        with session() as store:
-            last_seen = dict(store.db.execute(
+        with session() as db:
+            last_seen = dict(db.execute(
                 "SELECT kota, max(waktu AT TIME ZONE 'Asia/Jakarta') FROM public.cuaca_online GROUP BY kota").fetchall())
     starts = {city: START if penuh else mulai(last_seen.get(city), now.date()) for city in CITIES}
     with ThreadPoolExecutor(3) as pool:
@@ -124,8 +124,8 @@ def sync(penuh=False, csv=False, now=None):
         records = history.copy()
         records["waktu"] = records.waktu.dt.tz_localize(WIB)
         records = records.astype(object).where(records.notna(), None)
-        with session() as store:
-            with store.db.cursor() as cursor:
+        with session() as db:
+            with db.cursor() as cursor:
                 cursor.executemany("""INSERT INTO public.cuaca_online
                     (kota,waktu,temperature_2m,relative_humidity_2m,precipitation,wind_speed_10m,weather_code,pm2_5,sumber)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
@@ -135,7 +135,7 @@ def sync(penuh=False, csv=False, now=None):
                     weather_code=excluded.weather_code,pm2_5=excluded.pm2_5,sumber=excluded.sumber""",
                     records.itertuples(index=False, name=None))
             if csv:
-                _write_csv(pd.DataFrame(store.db.execute(RIWAYAT_SQL).fetchall(), columns=COLS))
+                _write_csv(pd.DataFrame(db.execute(RIWAYAT_SQL).fetchall(), columns=COLS))
     return summary
 
 

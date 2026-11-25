@@ -5,7 +5,7 @@
   const U = window.U;
   const KOTA = ["Bandung", "Jakarta", "Surabaya"];
   const MENU = [["/", "cuaca", "Cuaca"], ["/analisis", "analisis", "Analisis"], ["/riwayat", "riwayat", "Riwayat"],
-    ["/sensor", "sensor", "Sensor"], ["/kota", "kota", "Kota"]];
+    ["/kota", "kota", "Kota"]];
   const ATRIBUSI = 'Prakiraan: <a href="https://open-meteo.com/en/docs">Open-Meteo Forecast API</a>. Arsip: ECMWF ERA5 via Open-Meteo. ' +
     'PM2.5: estimasi model Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo, satu titik model per kota, bukan sensor. ' +
     '<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.';

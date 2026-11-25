@@ -1,10 +1,7 @@
-"""Logika di balik endpoint dashboard. Perhitungan memakai analisis.py, penyimpanan.py, dan sensor.py apa adanya."""
-from datetime import date, datetime, timedelta
+"""Pengolahan prakiraan, arsip 2025, dan riwayat cuaca per jam."""
+from datetime import date, datetime
 from functools import lru_cache
 from http.client import HTTPException
-import hmac
-import json
-import os
 import re
 import time
 
@@ -15,16 +12,13 @@ from analisis import FIELDS, TEMP, RH, RAIN, PM, NAMES, aggregate, load, monthly
 from jsonaman import bersih
 from penyimpanan import DB_ERRORS, WIB, cloud_url, session
 from prakiraan import outlook, ringkasan
-from sensor import measurement
 from sinkron_riwayat import COLS, RIWAYAT_SQL, SNAPSHOT
 
 KOTA = list(CITIES)
 TAHUN_AWAL, TAHUN_AKHIR = date(2025, 1, 1), date(2025, 12, 31)
 BULAN = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober",
          "November", "Desember"]
-AKTIF_MENIT = 15
 USANG_JAM = 6
-BATAS_BADAN = 4096
 PESAN_PRAKIRAAN = "Prakiraan Open-Meteo sedang tidak tersedia. Riwayat per jam tersedia di bawah."
 SUMBER_CSV = "salinan impor di repositori"
 
@@ -85,13 +79,6 @@ def cek_rentang(dari, sampai):
     if start > end:
         raise Galat(400, "Tanggal awal tidak boleh setelah tanggal akhir.")
     return start.isoformat(), end.isoformat()
-
-
-def pastikan_penyimpanan():
-    """Di Vercel berkas proyek tidak bisa ditulis, jadi tanpa Supabase tidak ada penyimpanan sensor."""
-    if os.getenv("VERCEL") and not cloud_url():
-        raise Galat(503, "Penyimpanan sensor belum diatur. Isi SUPABASE_DB_URL (URI Session pooler Supabase) "
-                         "di Environment Variables Vercel, lalu deploy ulang.")
 
 
 # ---------- format angka Indonesia ----------
@@ -250,13 +237,12 @@ def online_history():
         return cached
     if cloud_url():
         try:
-            with session() as store:
-                if store.cloud:
-                    rows = store.db.execute(RIWAYAT_SQL).fetchall()
-                    if rows:
-                        result = (pd.DataFrame(rows, columns=COLS), "Supabase")
-                        _cache_put("riwayat", result, 900)
-                        return result
+            with session() as db:
+                rows = db.execute(RIWAYAT_SQL).fetchall()
+                if rows:
+                    result = (pd.DataFrame(rows, columns=COLS), "Supabase")
+                    _cache_put("riwayat", result, 900)
+                    return result
         except DB_ERRORS:
             pass
     result = (pd.read_csv(SNAPSHOT, parse_dates=["waktu"]), SUMBER_CSV)
@@ -355,80 +341,3 @@ def _pm25_terakhir(kota):
         return None
     row = valid.iloc[-1]
     return bersih({"nilai": row[PM], "waktu": f"{row.waktu:%Y-%m-%dT%H:%M}"})
-
-
-# ---------- sensor ----------
-def _wib(text):
-    return datetime.fromisoformat(text).astimezone(WIB)
-
-
-def sensor(kota, now=None):
-    now = now or datetime.now(WIB)
-    pastikan_penyimpanan()
-    try:
-        with session() as store:
-            devices = [name for city, name in store.devices() if city == kota]
-            history = {name: store.history(kota, name) for name in devices}
-            cloud, table = store.cloud, store.table
-    except DB_ERRORS:
-        raise Galat(503, "Database sensor tidak terjangkau. Coba lagi sebentar lagi.") from None
-    try:
-        local, _ = _riwayat_kota(kota)
-        model = dict(zip(local.waktu, local[TEMP]))
-    except (OSError, ValueError, KeyError):
-        model = {}
-
-    measurements, devices_out = {}, []
-    for name in devices:
-        items = []
-        for stamp, temp, rh in history[name]:
-            moment = _wib(stamp)
-            model_temp = model.get(pd.Timestamp(moment.replace(tzinfo=None, minute=0, second=0, microsecond=0)))
-            items.append({"waktu": moment.isoformat(timespec="seconds"), "suhu": temp, "kelembapan": rh,
-                          "model_suhu": model_temp,
-                          "selisih": None if model_temp is None else temp - model_temp,
-                          "_moment": moment})
-        last = items[0]["_moment"] if items else None
-        hour = sum(1 for item in items if now - item["_moment"] <= timedelta(hours=1))
-        devices_out.append({"sensor": name, "terakhir": None if last is None else last.isoformat(timespec="seconds"),
-                            "aktif": last is not None and now - last < timedelta(minutes=AKTIF_MENIT),
-                            "kiriman_1_jam": hour, "kiriman_1_jam_batas": bool(items) and hour == len(items) == 60,
-                            "_last": last})
-        measurements[name] = [{k: v for k, v in item.items() if k != "_moment"} for item in items]
-    devices_out.sort(key=lambda item: (item["_last"] is None, -(item["_last"].timestamp() if item["_last"] else 0)))
-    latest = None
-    if devices_out and devices_out[0]["_last"]:
-        first = devices_out[0]
-        row = measurements[first["sensor"]][0]
-        latest = {"sensor": first["sensor"], "aktif": first["aktif"], "kiriman_1_jam": first["kiriman_1_jam"],
-                  "kiriman_1_jam_batas": first["kiriman_1_jam_batas"], **row}
-    for item in devices_out:
-        del item["_last"]
-    return bersih({"kota": kota, "sumber": "Supabase" if cloud else "SQLite lokal", "tabel": table,
-                   "perangkat": devices_out, "pengukuran": measurements, "terbaru": latest})
-
-
-# ---------- penerima sensor (POST /pengukuran) ----------
-def cek_token(authorization, token):
-    if not token:
-        raise Galat(503, "SENSOR_TOKEN belum diisi di server penerima.")
-    if not hmac.compare_digest((authorization or "").encode(), f"Bearer {token}".encode()):
-        raise Galat(401, "Token salah.")
-
-
-def simpan_pengukuran(body):
-    """Aturan sama dengan sensor.py: 400 data salah, 201 baru, 200 ulang, 409 beda, 503 database.
-    Token diperiksa lebih dulu lewat cek_token()."""
-    try:
-        if not 0 < len(body) <= BATAS_BADAN:
-            raise ValueError("Ukuran JSON harus 1–4096 byte.")
-        row = measurement(json.loads(body))
-    except (ValueError, RecursionError) as exc:
-        raise Galat(400, str(exc)) from None
-    pastikan_penyimpanan()
-    try:
-        with session() as store:
-            status = store.save(row)
-    except DB_ERRORS:
-        raise Galat(503, "Database tidak terjangkau. Kirim ulang dengan waktu pengukuran yang sama.") from None
-    return status

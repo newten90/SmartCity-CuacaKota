@@ -30,8 +30,8 @@
       '<div style="display:flex;gap:12px;align-items:center"><span style="color:var(--accent)">' + U.ikon("basisdata", 28) + "</span><div>" +
       '<div style="font-weight:800;font-size:16px">' + (cloud ? "Supabase · " + e(d.tabel) : "Salinan impor di repositori · " + e(d.tabel)) + "</div>" +
       '<div class="kecil">' + U.ribuan(d.jumlah) + " jam · " + U.waktu.tanggalPendek(d.awal) + " – " + U.waktu.tanggalPendek(d.akhir) + " " + U.waktu.jam(d.akhir) + " WIB</div>" +
-      '<div class="kecil" style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">Sinkron terakhir: ' + (d.akhir ? U.waktu.lengkap(d.akhir) + " · " + umur(d.selisih_jam) : "belum ada data") +
-      (d.usang ? ' <span class="lencana hangat">Lebih dari 6 jam</span>' : ' <span class="lencana ok">Terbaru</span>') + "</div></div></div>" +
+      '<div class="kecil" style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">Data terakhir: ' + (d.akhir ? U.waktu.lengkap(d.akhir) + " · " + umur(d.selisih_jam) : "belum ada data") +
+      (d.usang ? ' <span class="lencana hangat">Lebih dari 6 jam</span>' : ' <span class="lencana ok">Terbaru</span>') + "</div><div class='kecil'>Data per jam dari Open-Meteo diperbarui otomatis melalui GitHub Actions setiap 3 jam.</div></div></div>" +
       '<a class="btn gelap" href="/api/riwayat.csv?kota=' + encodeURIComponent(d.kota) + '" download>' + U.ikon("unduh", 18) + "Unduh riwayat per jam</a></div></section>";
   }
 
