@@ -30,8 +30,8 @@
       '<div style="display:flex;gap:12px;align-items:center"><span style="color:var(--accent)">' + U.ikon("basisdata", 28) + "</span><div>" +
       '<div style="font-weight:800;font-size:16px">' + (cloud ? "Supabase · " + e(d.tabel) : "Salinan impor di repositori · " + e(d.tabel)) + "</div>" +
       '<div class="kecil">' + U.ribuan(d.jumlah) + " jam · " + U.waktu.tanggalPendek(d.awal) + " – " + U.waktu.tanggalPendek(d.akhir) + " " + U.waktu.jam(d.akhir) + " WIB</div>" +
-      '<div class="kecil" style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">Sinkron terakhir: ' + (d.akhir ? U.waktu.lengkap(d.akhir) + " · " + umur(d.selisih_jam) : "belum ada data") +
-      (d.usang ? ' <span class="lencana hangat">Lebih dari 6 jam</span>' : ' <span class="lencana ok">Terbaru</span>') + "</div></div></div>" +
+      '<div class="kecil" style="margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">Data terakhir: ' + (d.akhir ? U.waktu.lengkap(d.akhir) + " · " + umur(d.selisih_jam) : "belum ada data") +
+      (d.usang ? ' <span class="lencana hangat">Lebih dari 6 jam</span>' : ' <span class="lencana ok">Terbaru</span>') + "</div><div class='kecil'>Data per jam dari Open-Meteo diperbarui otomatis melalui GitHub Actions setiap 3 jam.</div></div></div>" +
       '<a class="btn gelap" href="/api/riwayat.csv?kota=' + encodeURIComponent(d.kota) + '" download>' + U.ikon("unduh", 18) + "Unduh riwayat per jam</a></div></section>";
   }
 
@@ -82,6 +82,37 @@
       v.nama + " per jam " + data.kota + " sejak " + U.waktu.tanggalPendek(data.awal));
   }
 
+  const pembanding = VARIABEL.filter(v => ["temperature_2m", "relative_humidity_2m", "pm2_5"].includes(v.kolom));
+
+  function kartuPola(p) {
+    if (!p) return "";
+    return '<section class="kartu" id="pola"><div class="kepala"><h2>Pola per jam · 2025 dan 2026</h2>' +
+      '<label>Bandingkan <select id="variabel-pola">' + pembanding.map(v => '<option value="' + v.kolom + '">' + v.nama + '</option>').join("") +
+      '</select></label></div><p class="kecil">Riwayat ' + U.waktu.lengkap(p.awal) + ' sampai ' + U.waktu.lengkap(p.akhir) +
+      '. Setiap nilai dipasangkan dengan tanggal dan jam WIB yang sama di arsip 2025. Jam dengan nilai kosong di salah satu tahun dilewati.</p>' +
+      '<p id="ringkas-pola"></p><div id="grafik-pola" class="grafik tinggi"></div><details><summary>Lihat angka untuk 24 jam WIB</summary>' +
+      '<div class="gulir"><table><thead><tr><th>Jam WIB</th><th>2025</th><th>2026</th><th>Selisih</th><th>Pasangan</th></tr></thead><tbody id="angka-pola"></tbody></table></div></details></section>';
+  }
+
+  function gambarPola() {
+    const v = pembanding.find(item => item.kolom === document.getElementById("variabel-pola").value);
+    const hasil = data.pola.variabel[v.kolom], jam = hasil.jam;
+    const nilai = n => U.angka(n, 2);
+    const beda = n => (n > 0 ? "+" : "") + nilai(n);
+    const unit = v.kolom === "relative_humidity_2m" ? "poin persentase" : v.satuan;
+    document.getElementById("ringkas-pola").textContent = hasil.pasangan
+      ? "Rerata " + v.nama.toLowerCase() + " dari " + U.ribuan(hasil.pasangan) + " pasangan jam: " + nilai(hasil.arsip) + " " + v.satuan +
+        " (2025) dan " + nilai(hasil.riwayat) + " " + v.satuan + " (2026). Selisih " + beda(hasil.selisih) + " " + unit + "."
+      : "Belum ada pasangan jam dengan nilai yang lengkap untuk variabel ini.";
+    const label = jam.map(b => String(b.jam).padStart(2, "0") + ":00");
+    document.getElementById("angka-pola").innerHTML = jam.map((b, i) => "<tr><td>" + label[i] + "</td><td>" +
+      nilai(b.arsip) + "</td><td>" + nilai(b.riwayat) + "</td><td>" + beda(b.selisih) + "</td><td>" + b.pasangan + "</td></tr>").join("");
+    const jejak = ["arsip", "riwayat"].map((key, i) => ({ x: label, y: jam.map(b => b[key]), name: i ? "2026" : "2025",
+      type: "scatter", mode: "lines+markers", line: {color: i ? W.aksen : W.hangat, dash: i ? "solid" : "dash"} }));
+    U.gambar(document.getElementById("grafik-pola"), jejak, U.tata({height: 300, showlegend: true,
+      legend: {orientation: "h"}, xaxis: {type: "category", dtick: 3}, yaxis: {title: {text: v.satuan}, automargin: true}}), "Rerata " + v.nama + " menurut jam WIB");
+  }
+
   function tabel() {
     const urut = data.baris.slice().reverse(), tampilkan = urut.slice(0, tampil);
     const baris = tampilkan.map(function (b) {
@@ -125,7 +156,11 @@
       ctx.isi.innerHTML = sumberKartu(d) + peringatan(d) + '<section class="kartu"><div class="kosong">' + U.ikon("riwayat", 34) + '<div class="judul">Belum ada riwayat</div><div class="isi-kosong">Jalankan sinkron_riwayat.py untuk mengisi riwayat per jam.</div></div></section>';
       return;
     }
-    ctx.isi.innerHTML = sumberKartu(d) + peringatan(d) + grafikKartu() + '<div id="tabel">' + tabel() + "</div>";
+    ctx.isi.innerHTML = sumberKartu(d) + peringatan(d) + kartuPola(d.pola) + grafikKartu() + '<div id="tabel">' + tabel() + "</div>";
+    if (d.pola) {
+      document.getElementById("variabel-pola").addEventListener("change", gambarPola);
+      gambarPola();
+    }
     pasang();
     gambarGrafik();
   }

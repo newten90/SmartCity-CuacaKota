@@ -1,7 +1,7 @@
 {
   "functions": {
     "main.py": {
-      "excludeFiles": "{laporan/**,bukti/**,desain/**,.github/**,.streamlit/**,data/*.json,data/harian.csv,data/bulanan.csv,data/*.sqlite3*,uji.py,uji_api.py,uji_sensor.py}"
+      "excludeFiles": "{laporan/**,bukti/**,desain/**,.github/**,.streamlit/**,data/*.json,data/harian.csv,data/bulanan.csv,data/*.sqlite3*,uji.py,uji_api.py}"
     }
   }
 }

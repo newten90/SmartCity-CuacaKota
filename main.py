@@ -1,11 +1,9 @@
 """Aplikasi web Cuaca Kota: JSON API dan halaman statis. Jalankan:
     .\\.venv\\Scripts\\python -m uvicorn main:app --reload
 Di Vercel berkas ini dikenali otomatis sebagai entrypoint FastAPI (instance bernama app)."""
-import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -90,34 +88,6 @@ def api_analisis_csv(kota: str | None = None, dari: str | None = None, sampai: s
     return unduh(*layanan.analisis_csv(kota, dari, sampai))
 
 
-@app.get("/api/sensor")
-def api_sensor(kota: str | None = None):
-    return kirim(layanan.sensor(layanan.cek_kota(kota)))
-
-
-@app.post("/pengukuran")
-async def pengukuran(request: Request):
-    token = os.getenv("SENSOR_TOKEN")
-    auth = request.headers.get("Authorization", "")
-    # Urutan sama dengan sensor.py: token diperiksa sebelum badan permintaan dibaca.
-    layanan.cek_token(auth, token)
-    try:
-        declared = int(request.headers.get("Content-Length", 0))
-    except ValueError:
-        raise Galat(400, "Ukuran JSON harus 1–4096 byte.") from None
-    if declared > layanan.BATAS_BADAN:
-        raise Galat(400, "Ukuran JSON harus 1–4096 byte.")
-    body = b""
-    async for chunk in request.stream():
-        body += chunk
-        if len(body) > layanan.BATAS_BADAN:
-            raise Galat(400, "Ukuran JSON harus 1–4096 byte.")
-    status = await run_in_threadpool(layanan.simpan_pengukuran, body)
-    pesan = {201: "Pengukuran tersimpan.", 200: "Kiriman ulang yang sama, tidak ada perubahan.",
-             409: "Nilai berbeda untuk pengukuran yang sama (kota, sensor, dan waktu)."}[status]
-    return kirim({"pesan": pesan}, status=status)
-
-
 # ---------- halaman ----------
 def halaman(nama):
     def tampil():
@@ -125,7 +95,7 @@ def halaman(nama):
     return tampil
 
 
-for path, nama in [("/", "cuaca"), ("/analisis", "analisis"), ("/riwayat", "riwayat"), ("/sensor", "sensor"),
+for path, nama in [("/", "cuaca"), ("/analisis", "analisis"), ("/riwayat", "riwayat"),
                    ("/kota", "kota")]:
     app.add_api_route(path, halaman(nama), methods=["GET"], include_in_schema=False)
 

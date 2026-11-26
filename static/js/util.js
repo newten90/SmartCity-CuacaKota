@@ -6,7 +6,6 @@
     cuaca: '<path d="M4 11l8-6.5 8 6.5M6 9.5V20h12V9.5"/>',
     analisis: '<path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/>',
     riwayat: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/>',
-    sensor: '<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M9.5 3.5v3.5M14.5 3.5v3.5M9.5 17v3.5M14.5 17v3.5M3.5 9.5H7M3.5 14.5H7M17 9.5h3.5M17 14.5h3.5"/>',
     kota: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>',
     "cerah-berawan": '<path d="M8.5 4.5v1.4M3.6 9.2h1.4M5 5.7l1 1M12 5.7l-1 1"/><path d="M5.6 11.2a3.6 3.6 0 0 1 6.4-3"/><path d="M8 19h9a3.6 3.6 0 0 0 .3-7.2 5 5 0 0 0-9.6.9A3.2 3.2 0 0 0 8 19z"/>',
     cerah: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
@@ -34,7 +33,7 @@
       (warna || "currentColor") + '" stroke-width="' + (tebal || 1.8) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + isi + "</svg>";
   }
 
-  // Semua teks dari API (termasuk nama sensor kiriman perangkat) dilewatkan esc() sebelum masuk HTML.
+  // Semua teks dari API dilewatkan esc() sebelum masuk HTML.
   function esc(teks) {
     return String(teks == null ? "" : teks).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
