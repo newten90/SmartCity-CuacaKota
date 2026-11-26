@@ -128,3 +128,9 @@ def halaman(nama):
 for path, nama in [("/", "cuaca"), ("/analisis", "analisis"), ("/riwayat", "riwayat"), ("/sensor", "sensor"),
                    ("/kota", "kota")]:
     app.add_api_route(path, halaman(nama), methods=["GET"], include_in_schema=False)
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    # Beberapa browser tetap meminta /favicon.ico walau sudah ada <link rel="icon">.
+    return FileResponse(STATIC / "icons" / "favicon.ico", headers={"Cache-Control": "public, max-age=86400"})
